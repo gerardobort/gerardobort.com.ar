@@ -49,6 +49,17 @@ function CanvasFrame(canvas) {
     // remember the original pixels
     that.original = that.getData();
     this.i = 0;
+    this.hull = new ConvexHull();
+    this.pointColors = [
+        'rgba(0,     0,   0, 0.6)',
+        'rgba(0,     0, 255, 0.6)',
+        'rgba(0,   255,   0, 0.6)',
+        'rgba(0  , 255, 255, 0.6)',
+        'rgba(255,   0,   0, 0.6)',
+        'rgba(255,   0, 255, 0.6)',
+        'rgba(255, 255,   0, 0.6)',
+        'rgba(255, 255, 255, 0.6)'
+    ];
 }
 
 CanvasFrame.prototype.getData = function() {
@@ -87,13 +98,20 @@ CanvasFrame.prototype.transform = function() {
         len = newpx.length;
 
     var MOTION_COLOR_THRESHOLD = 40,
-        GRID_FACTOR = 4,
+        GRID_FACTOR = 10,
         alpha = 0,
         beta = 70,
         gamma = 3,
-        i = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT;
+        i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT;
 
-    var ctx = this.context;
+    var k = 2;
+        p = o = null,
+        dMin = d = 0,
+        jMin = 0,
+        points = [],
+        objects = [],
+        delta = 10,
+        maxDelta = 0;
 
     // iterate through the main buffer and calculate the differences with previous
     for (i = 0; i < len; i += 4) {
@@ -107,19 +125,66 @@ CanvasFrame.prototype.transform = function() {
 
         x = (i/4) % w;
         y = parseInt((i/4) / w);
-        cx = cy = 0;
-
-
         if (this.i > this.buffersN && (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) && alpha > beta) {
             
             newpx[i+0] = videopx[i+0];
             newpx[i+1] = videopx[i+1];
             newpx[i+2] = videopx[i+2];
-            newpx[i+3] = parseInt(alpha);
+            newpx[i+3] = parseInt(alpha, 10);
+
+            points.push([x, y]);
 
         }
     }
+
+    // PAM algorythm (k-Means clustering)
+    for (j = 0; j < k; j++) {
+        x = parseInt(Math.random()*CANVAS_WIDTH, 10);
+        y = parseInt(Math.random()*CANVAS_HEIGHT, 10);
+        objects.push([x, y, [], []]); // x, y, innerPointsVec, innerPointsObj
+    }
+
+    for (i = 0, l = points.length; i < l; i++) {
+        p = points[i];
+        dMin = Number.MAX_VALUE;
+        jMin = 0;
+        for (j = 0; j < k; j++) {
+            o = objects[j];
+            if ((d = distance2(p, o, 0)) < dMin) {
+                dMin = d;
+                jMin = j;
+            }
+        }
+        objects[jMin][2].push(p);
+        objects[jMin][3].push({ x: p[0], y: p[1] });
+    }
+
     this.setData(newdata);
+
+    // draw object hulls
+    var ctx = this.context;
+    for (var j = 0; j < k; j++) {
+        var rpoints = objects[j][3];
+        //console.log(j, rpoints.length)
+        this.hull.clear();
+        this.hull.compute(rpoints);
+        var indices = this.hull.getIndices();
+        if (indices && indices.length > 2) {
+            var rp = [rpoints[indices[0]].x, rpoints[indices[0]].y];
+            ctx.beginPath();
+            ctx.moveTo(rp[0], rp[1]);
+            ctx.fillStyle = this.pointColors[j];
+            ctx.strokeStyle = "rgba(100, 100, 100, 0)";
+            for (i = 1, l = indices.length; i < l; i++) {
+                rp = [rpoints[indices[i]].x, rpoints[indices[i]].y];
+                ctx.lineTo(rp[0], rp[1]);
+            }
+            ctx.fill();
+            ctx.stroke();
+            ctx.closePath();
+        }
+    }
+
 
     //markPoint(ctx, this.ballPosition[0], this.ballPosition[1], 12, 'rgba(255,0,0,0.5)');
 };
