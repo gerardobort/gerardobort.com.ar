@@ -60,6 +60,7 @@ function CanvasFrame(canvas) {
         'rgba(255, 255,   0, 0.6)',
         'rgba(255, 255, 255, 0.6)'
     ];
+    this.objectsBuffer = [];
 }
 
 CanvasFrame.prototype.getData = function() {
@@ -97,10 +98,10 @@ CanvasFrame.prototype.transform = function() {
         newpx = newdata.data,
         len = newpx.length;
 
-    var MOTION_COLOR_THRESHOLD = 40,
-        GRID_FACTOR = 10,
+    var MOTION_COLOR_THRESHOLD = 50,
+        GRID_FACTOR = 2,
+        MOTION_ALPHA_THRESHOLD = 120,
         alpha = 0,
-        beta = 70,
         gamma = 3,
         i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT;
 
@@ -110,8 +111,9 @@ CanvasFrame.prototype.transform = function() {
         jMin = 0,
         points = [],
         objects = [],
-        delta = 10,
-        maxDelta = 0;
+        step = 0,
+        maxSteps = 4,
+        maxDelta = 50;
 
     // iterate through the main buffer and calculate the differences with previous
     for (i = 0; i < len; i += 4) {
@@ -125,7 +127,7 @@ CanvasFrame.prototype.transform = function() {
 
         x = (i/4) % w;
         y = parseInt((i/4) / w);
-        if (this.i > this.buffersN && (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) && alpha > beta) {
+        if (this.i > this.buffersN && (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) && alpha > MOTION_ALPHA_THRESHOLD) {
             
             newpx[i+0] = videopx[i+0];
             newpx[i+1] = videopx[i+1];
@@ -137,39 +139,61 @@ CanvasFrame.prototype.transform = function() {
         }
     }
 
-    // PAM algorythm (k-Means clustering)
-    for (j = 0; j < k; j++) {
-        x = parseInt(Math.random()*CANVAS_WIDTH, 10);
-        y = parseInt(Math.random()*CANVAS_HEIGHT, 10);
-        objects.push([x, y, [], []]); // x, y, innerPointsVec, innerPointsObj
-    }
-
-    for (i = 0, l = points.length; i < l; i++) {
-        p = points[i];
-        dMin = Number.MAX_VALUE;
-        jMin = 0;
-        for (j = 0; j < k; j++) {
-            o = objects[j];
-            if ((d = distance2(p, o, 0)) < dMin) {
-                dMin = d;
-                jMin = j;
-            }
-        }
-        objects[jMin][2].push(p);
-        objects[jMin][3].push({ x: p[0], y: p[1] });
-    }
 
     this.setData(newdata);
 
-    // draw object hulls
     var ctx = this.context;
+
+    // PAM algorythm (k-Means clustering)
+    for (step = 0; step < maxSteps; step++) {
+        for (j = 0; j < k; j++) {
+            if (0 === step) {
+                if (!this.objectsBuffer[j]) {
+                    x = parseInt(Math.random()*CANVAS_WIDTH, 10);
+                    y = parseInt(Math.random()*CANVAS_HEIGHT, 10);
+                    objects.push([x, y, [], [], 0, 0]); // x, y, innerPointsVec, innerPointsObj, mx, my
+                } else {
+                    objects.push(this.objectsBuffer[j]);
+                }
+            } else {
+                // re-assign object x,y
+                objects[j][0] = objects[j][4]/objects[j][2].length;
+                objects[j][1] = objects[j][5]/objects[j][2].length;
+                objects[j][2] = [];
+                objects[j][3] = [];
+                objects[j][4] = 0;
+                objects[j][5] = 0;
+            }
+        }
+
+        for (i = 0, l = points.length; i < l; i++) {
+            p = points[i];
+            dMin = Number.MAX_VALUE;
+            jMin = 0;
+            for (j = 0; j < k; j++) {
+                o = objects[j];
+                if ((d = distance2(p, o, 0)) < dMin) {
+                    dMin = d;
+                    jMin = j;
+                }
+            }
+            if (step !== maxSteps-1 || dMin < maxDelta) {
+                objects[jMin][2].push(p);
+                objects[jMin][3].push({ x: p[0], y: p[1] });
+                objects[jMin][4] += p[0];
+                objects[jMin][5] += p[1];
+            }
+        }
+    }
+
     for (var j = 0; j < k; j++) {
         var rpoints = objects[j][3];
-        //console.log(j, rpoints.length)
+
+        // draw object hulls
         this.hull.clear();
         this.hull.compute(rpoints);
         var indices = this.hull.getIndices();
-        if (indices && indices.length > 2) {
+        if (indices && indices.length > 3) {
             var rp = [rpoints[indices[0]].x, rpoints[indices[0]].y];
             ctx.beginPath();
             ctx.moveTo(rp[0], rp[1]);
@@ -182,11 +206,17 @@ CanvasFrame.prototype.transform = function() {
             ctx.fill();
             ctx.stroke();
             ctx.closePath();
+
+            if (this.objectsBuffer[j]) {
+                var avgP = [(objects[j][0] + this.objectsBuffer[j][0])*0.5, (objects[j][1] + this.objectsBuffer[j][1])*0.5];
+                markPoint(ctx, avgP[0], avgP[1], 6, this.pointColors[j]);
+            }
+            this.objectsBuffer[j] = objects[j]; // update buffer
+        } else {
+            this.objectsBuffer[j] = null; // update buffer
         }
     }
 
-
-    //markPoint(ctx, this.ballPosition[0], this.ballPosition[1], 12, 'rgba(255,0,0,0.5)');
 };
 
 Array.prototype.v3_reflect = function (normal) {
