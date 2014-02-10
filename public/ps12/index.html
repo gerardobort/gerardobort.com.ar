@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>PS test</title>
+        <style>
+            video,
+            canvas {
+                width: 50%;
+                height: 50%;
+                position: absolute;
+                border: 1px solid black;
+                min-width: 480px;
+                box-sizing: border-box;
+                -webkit-transform: scaleX(-1); /* hack for mirroring */
+            }
+            video { top: 0; right: 0; background: #000; display: none; }
+            #canvas1 { top: 0; left: 0; }
+            #canvas1 { width: 100%; height: 100%; }
+            #canvas2 { bottom: 0; left: 0; z-index: 1; background: rgba(0,0,0,0.1); }
+            #canvas2 { width: 100%; height: 100%; }
+            #canvas2:hover { width: 100%; height: 100%; }
+            #ball {
+                background: url(football-ball.png); width: 64px; height: 64px;
+                position: absolute; left: 50%; top: 50%;
+                margin: -32px;
+                z-index: 99;
+                !-webkit-transition: -webkit-transform 10ms;
+            }
+        </style>
+    </head>
+    <body>
+
+        <video id="video" width="320" height="280" autoplay="true"></video>
+        <canvas id="canvas1"></canvas>
+        <canvas id="canvas2"></canvas>
+        <div id="direction"></div>
+        <div id="ball"></div>
+
+        <script src="main.js"></script>
+
+    </body>
+</html>
+
