@@ -113,7 +113,7 @@ CanvasFrame.prototype.transform = function() {
         objects = [],
         step = 0,
         maxSteps = 4,
-        maxDelta = 50;
+        maxDelta = 80;
 
     // iterate through the main buffer and calculate the differences with previous
     for (i = 0; i < len; i += 4) {
@@ -139,6 +139,11 @@ CanvasFrame.prototype.transform = function() {
         }
     }
 
+
+    // set a k value dinamically based on the amount of moving points in the canvas
+    k = parseInt((points.length*600)/(CANVAS_WIDTH*CANVAS_HEIGHT)/(GRID_FACTOR*GRID_FACTOR), 10);
+    if (k === 0) k = 1;
+    if (k > 3) k = 3;
 
     this.setData(newdata);
 
@@ -177,7 +182,7 @@ CanvasFrame.prototype.transform = function() {
                     jMin = j;
                 }
             }
-            if (step !== maxSteps-1 || dMin < maxDelta) {
+            if ((step !== maxSteps-1 || dMin < maxDelta) && objects[jMin]) {
                 objects[jMin][2].push(p);
                 objects[jMin][3].push({ x: p[0], y: p[1] });
                 objects[jMin][4] += p[0];
