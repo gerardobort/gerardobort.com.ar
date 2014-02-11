@@ -105,7 +105,7 @@ CanvasFrame.prototype.transform = function() {
         gamma = 3,
         i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT;
 
-    var k = 3;
+    var k = 2;
         p = o = null,
         dMin = d = 0,
         jMin = 0,
@@ -113,7 +113,7 @@ CanvasFrame.prototype.transform = function() {
         objects = [],
         step = 0,
         maxSteps = 3,
-        maxDelta = 40;
+        maxDelta = 30;
 
     // iterate through the main buffer and calculate the differences with previous
     for (i = 0; i < len; i += 4) {
@@ -128,18 +128,17 @@ CanvasFrame.prototype.transform = function() {
         x = (i/4) % w;
         y = parseInt((i/4) / w);
         if (this.i > this.buffersN && (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) && alpha > MOTION_ALPHA_THRESHOLD) {
-            
             newpx[i+3] = parseInt(alpha, 10);
-
-            points.push([x, y]);
-
+            points.push([x, y, [ newpx[i+0], newpx[i+1], newpx[i+2] ]]);
         }
     }
 
     // remember buffered object coordinates
     for (j = 0; j < k; j++) {
         if (this.objectsBuffer[j]) {
-            points.push([ this.objectsBuffer[j][0], this.objectsBuffer[j][1] ]);
+            points.push([ this.objectsBuffer[j][0], this.objectsBuffer[j][1],  this.objectsBuffer[j][6]]);
+            points.push([ this.objectsBuffer[j][0], this.objectsBuffer[j][1],  this.objectsBuffer[j][6]]);
+            points.push([ this.objectsBuffer[j][0], this.objectsBuffer[j][1],  this.objectsBuffer[j][6]]);
         }
     }
 
@@ -160,7 +159,7 @@ CanvasFrame.prototype.transform = function() {
                 if (!this.objectsBuffer[j]) {
                     x = parseInt(Math.random()*CANVAS_WIDTH, 10);
                     y = parseInt(Math.random()*CANVAS_HEIGHT, 10);
-                    objects.push([x, y, [], [], 0, 0]); // x, y, innerPointsVec, innerPointsObj, mx, my
+                    objects.push([x, y, [], [], 0, 0, [0, 0, 0]]); // x, y, innerPointsVec, innerPointsObj, mx, my, rgbFloatColor
                 } else {
                     objects.push(this.objectsBuffer[j]);
                 }
@@ -172,6 +171,7 @@ CanvasFrame.prototype.transform = function() {
                 objects[j][3] = [];
                 objects[j][4] = 0;
                 objects[j][5] = 0;
+                objects[j][6] = [0, 0, 0];
             }
         }
 
@@ -191,18 +191,26 @@ CanvasFrame.prototype.transform = function() {
                 objects[jMin][3].push({ x: p[0], y: p[1] });
                 objects[jMin][4] += p[0];
                 objects[jMin][5] += p[1];
+            } else if (step < maxSteps) {
+                // means color
+                objects[jMin][6][0] += p[2][0]/l;
+                objects[jMin][6][1] += p[2][1]/l;
+                objects[jMin][6][2] += p[2][2]/l;
             }
         }
     }
 
     for (var j = 0; j < k; j++) {
         var rpoints = objects[j][3];
+        if (rpoints.length < 14/GRID_FACTOR) {
+            continue;
+        }
 
         // draw object hulls
         this.hull.clear();
         this.hull.compute(rpoints);
         var indices = this.hull.getIndices();
-        if (indices && indices.length > 3) {
+        if (indices && indices.length > 0) {
 
             /// <---
             var p, nx, ny, dx, dy, q, prevpx, c1, c2, cx = cy = countx = county = 0, maxpx = 30, modulus, versor, pcounter = 0;
@@ -273,7 +281,7 @@ CanvasFrame.prototype.transform = function() {
 
                 ctx.beginPath();
                 ctx.moveTo(avgP[0], avgP[1]);
-                ctx.lineTo(avgP[0]+versor[0]*30, avgP[1]+versor[1]*30);
+                ctx.lineTo(avgP[0]+versor[0]*0.03*modulus, avgP[1]+versor[1]*0.03*modulus);
                 ctx.closePath();
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = 'rgba(' + (150+3*cx) + ', 0, ' + (150+3*cy) + ', 0.7)';
@@ -294,10 +302,7 @@ CanvasFrame.prototype.transform = function() {
             ctx.stroke();
             ctx.closePath();
 
-
             this.objectsBuffer[j] = objects[j]; // update buffer
-        } else {
-            this.objectsBuffer[j] = null; // update buffer
         }
     }
 
