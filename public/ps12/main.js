@@ -1,6 +1,6 @@
 
-var CANVAS_WIDTH = 400,
-    CANVAS_HEIGHT = 300;
+var CANVAS_WIDTH = 300,
+    CANVAS_HEIGHT = 200;
 
 function $(id) { return document.getElementById(id); }
 
@@ -99,21 +99,21 @@ CanvasFrame.prototype.transform = function() {
         len = newpx.length;
 
     var MOTION_COLOR_THRESHOLD = 50,
-        GRID_FACTOR = 2,
+        GRID_FACTOR = 4,
         MOTION_ALPHA_THRESHOLD = 120,
         alpha = 0,
         gamma = 3,
         i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT;
 
-    var k = 2;
+    var k = 3;
         p = o = null,
         dMin = d = 0,
         jMin = 0,
         points = [],
         objects = [],
         step = 0,
-        maxSteps = 4,
-        maxDelta = 80;
+        maxSteps = 3,
+        maxDelta = 40;
 
     // iterate through the main buffer and calculate the differences with previous
     for (i = 0; i < len; i += 4) {
@@ -129,9 +129,6 @@ CanvasFrame.prototype.transform = function() {
         y = parseInt((i/4) / w);
         if (this.i > this.buffersN && (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) && alpha > MOTION_ALPHA_THRESHOLD) {
             
-            newpx[i+0] = videopx[i+0];
-            newpx[i+1] = videopx[i+1];
-            newpx[i+2] = videopx[i+2];
             newpx[i+3] = parseInt(alpha, 10);
 
             points.push([x, y]);
@@ -139,11 +136,18 @@ CanvasFrame.prototype.transform = function() {
         }
     }
 
+    // remember buffered object coordinates
+    for (j = 0; j < k; j++) {
+        if (this.objectsBuffer[j]) {
+            points.push([ this.objectsBuffer[j][0], this.objectsBuffer[j][1] ]);
+        }
+    }
+
 
     // set a k value dinamically based on the amount of moving points in the canvas
-    k = parseInt((points.length*600)/(CANVAS_WIDTH*CANVAS_HEIGHT)/(GRID_FACTOR*GRID_FACTOR), 10);
-    if (k === 0) k = 1;
-    if (k > 3) k = 3;
+    //k = parseInt((points.length*600)/(CANVAS_WIDTH*CANVAS_HEIGHT)/(GRID_FACTOR*GRID_FACTOR), 10);
+    //if (k === 0) k = 1;
+    //if (k > 3) k = 3;
 
     this.setData(newdata);
 
@@ -199,6 +203,84 @@ CanvasFrame.prototype.transform = function() {
         this.hull.compute(rpoints);
         var indices = this.hull.getIndices();
         if (indices && indices.length > 3) {
+
+            /// <---
+            var p, nx, ny, dx, dy, q, prevpx, c1, c2, cx = cy = countx = county = 0, maxpx = 30, modulus, versor, pcounter = 0;
+
+            for (i = 0, l = rpoints.length; i < l; i++) {
+                x = rpoints[i].x;
+                y = rpoints[i].y;
+
+                prevpx = this.buffers[this.buffersN-2].data;
+                lastpx = this.buffers[this.buffersN-1].data;
+
+                q = (y*w + x)*4;
+                c1 = [lastpx[q+0], lastpx[q+1], lastpx[q+2]];
+
+                cx = cy = 0;
+
+                for (dx = 0; dx < maxpx; dx++) {
+                    nx = x + dx;
+                    q = (y*w + nx)*4;
+                    c2 = [prevpx[q+0], prevpx[q+1], prevpx[q+2]];
+                    if (distance3(c1, c2, 0) < 50) {
+                        cx++;
+                    } else {
+                        break;
+                    }
+                }
+                for (dx = 0; dx > -maxpx; dx--) {
+                    nx = x + dx;
+                    q = (y*w + nx)*4;
+                    c2 = [prevpx[q+0], prevpx[q+1], prevpx[q+2]];
+                    if (distance3(c1, c2, 0) < 50) {
+                        cx--;
+                    } else {
+                        break;
+                    }
+                }
+                for (dy = 0; dy < maxpx; dy++) {
+                    ny = y + dy;
+                    q = (ny*w + x)*4;
+                    c2 = [prevpx[q+0], prevpx[q+1], prevpx[q+2]];
+                    if (distance3(c1, c2, 0) < 50) {
+                        cy++;
+                    } else {
+                        break;
+                    }
+                }
+                for (dy = 0; dy > -maxpx; dy--) {
+                    ny = y + dy;
+                    q = (ny*w + x)*4;
+                    c2 = [prevpx[q+0], prevpx[q+1], prevpx[q+2]];
+                    if (distance3(c1, c2, 0) < 50) {
+                        cy--;
+                    } else {
+                        break;
+                    }
+                }
+                countx += cx;
+                county += cy;
+                pcounter++;
+            }
+
+            modulus = Math.sqrt(countx*countx + county*county);
+            versor = [-countx/modulus, -county/modulus];
+
+            if (this.objectsBuffer[j]) {
+                var avgP = [(objects[j][0] + this.objectsBuffer[j][0])*0.5, (objects[j][1] + this.objectsBuffer[j][1])*0.5];
+                markPoint(ctx, avgP[0], avgP[1], 6, this.pointColors[j]);
+
+                ctx.beginPath();
+                ctx.moveTo(avgP[0], avgP[1]);
+                ctx.lineTo(avgP[0]+versor[0]*30, avgP[1]+versor[1]*30);
+                ctx.closePath();
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'rgba(' + (150+3*cx) + ', 0, ' + (150+3*cy) + ', 0.7)';
+                ctx.stroke();
+            }
+            ///  --->
+
             var rp = [rpoints[indices[0]].x, rpoints[indices[0]].y];
             ctx.beginPath();
             ctx.moveTo(rp[0], rp[1]);
@@ -212,10 +294,7 @@ CanvasFrame.prototype.transform = function() {
             ctx.stroke();
             ctx.closePath();
 
-            if (this.objectsBuffer[j]) {
-                var avgP = [(objects[j][0] + this.objectsBuffer[j][0])*0.5, (objects[j][1] + this.objectsBuffer[j][1])*0.5];
-                markPoint(ctx, avgP[0], avgP[1], 6, this.pointColors[j]);
-            }
+
             this.objectsBuffer[j] = objects[j]; // update buffer
         } else {
             this.objectsBuffer[j] = null; // update buffer
