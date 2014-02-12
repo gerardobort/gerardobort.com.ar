@@ -1,6 +1,6 @@
 
-var CANVAS_WIDTH = 240,
-    CANVAS_HEIGHT = 120;
+var CANVAS_WIDTH = 300,
+    CANVAS_HEIGHT = 150;
 
 function $(id) { return document.getElementById(id); }
 
@@ -59,10 +59,10 @@ CanvasFrame.prototype.transform = function() {
         newpx = newdata.data,
         len = newpx.length;
 
-    var MOTION_COLOR_THRESHOLD = 120,
+    var MOTION_COLOR_THRESHOLD = 80,
         GRID_FACTOR = 1,
-        RIGHT_SCANNING_ANGLE = 30, // deg
-        SCAN_MAX_OFFSET = GRID_FACTOR*10,
+        RIGHT_SCANNING_ANGLE = 15, // deg
+        SCAN_MAX_OFFSET = GRID_FACTOR*20,
         i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT,
         fscan, d, m = Math.tan(Math.PI/(180/RIGHT_SCANNING_ANGLE));
 
@@ -74,34 +74,34 @@ CanvasFrame.prototype.transform = function() {
         if (x < CANVAS_WIDTH/2) {
             y = parseInt((i/4) / w);
             if (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) {
-                d = y - m*(x + w/2); // shifted to the right video stream
-                fscan = function (xi) { return h - (m*xi + d); };
+                d = y - m*(x); // shifted to the right video stream
+                fscan = function (xi) { return (m*xi + d); };
 
                 // pick the left side pixel color
                 cl = [videopx[i+0], videopx[i+1], videopx[i+2]];
-                for (dx = -SCAN_MAX_OFFSET; dx < SCAN_MAX_OFFSET; dx+=2) {
+                for (dx = - SCAN_MAX_OFFSET; dx < SCAN_MAX_OFFSET; dx+=2) {
                     xr = w/2 + x + dx;
-                    yr = parseInt(fscan(xr), 10);
+                    yr = parseInt(fscan(x), 10);
                     if (0 === dx || xr < w/2 || xr > w || yr < 0 || yr > h) continue;
                     j = (yr*w + xr)*4;
 
                     // pick the right side scanning pixel color
                     cr = [videopx[j+0], videopx[j+1], videopx[j+2]];
 
-                    // if matches
+                    // if matches then draw the depthmap at the right
                     if (distance3(cl, cr, 0) < MOTION_COLOR_THRESHOLD) {
-                        k = (y*w + w/2 + x)*4;
-                        depth = 1/(2*SCAN_MAX_OFFSET) * (dx + SCAN_MAX_OFFSET); // estimate depth 0 to 1
+                        //k = (y*w + w/2 + x)*4;
+                        depth = 1/(2*SCAN_MAX_OFFSET) * (dx + SCAN_MAX_OFFSET); // estimate depth 0 to 1 (higher is deeper)
                         colorDepth = parseInt(depth*255, 10);
-                        newpx[k+0] = colorDepth;
-                        //newpx[k+1] = colorDepth;
-                        //newpx[k+2] = colorDepth;
+                        newpx[i+0] = colorDepth;
+                        newpx[i+1] = 0;
+                        newpx[i+2] = 0;
                         //newpx[k+3] = colorDepth;
                         break;
                     }
+
                 }
             }
-        } else {
         }
     }
     this.context.putImageData(newdata, 0, 0);
