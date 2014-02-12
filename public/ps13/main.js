@@ -9,6 +9,11 @@ var url ="gopro3d/GoPro 3D  Winter X Games 2011 Highlights.sd.mp4";
 $('video').src = url;
 webkitRequestAnimationFrame(paintOnCanvas);
 
+$('canvas1').onclick = function () {
+    var video = $('video');
+    video.paused ? video.play() : video.pause();
+}
+
 function paintOnCanvas() {
     var transformador = transformadores[0];
     transformador.context.drawImage(
@@ -92,209 +97,59 @@ CanvasFrame.prototype.transform = function() {
     var MOTION_COLOR_THRESHOLD = 50,
         GRID_FACTOR = 10,
         MOTION_ALPHA_THRESHOLD = 120,
+        RIGHT_SCANNING_ANGLE = 30, // deg
         alpha = 0,
         gamma = 3,
-        i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT;
+        i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT,
+        fscan, d, m = Math.tan(Math.PI/(180/RIGHT_SCANNING_ANGLE));
 
-    var k = 4;
-        p = o = null,
-        dMin = d = 0,
-        jMin = 0,
-        points = [],
-        objects = [],
-        step = 0,
-        maxSteps = 3,
-        maxDelta = 30;
-
-    // iterate through the main buffer and calculate the differences with previous
+    // iterate through the main buffer
     for (i = 0; i < len; i += 4) {
-        // change the alpha channel based on the frame color differences
-        alpha = 255;
-        for (var j = 0, l = this.buffersN-1; j < l; j++) {
-            if (distance3(this.buffers[j].data, this.buffers[j+1].data, i) < MOTION_COLOR_THRESHOLD) {
-                alpha -= 255/l;
-            }
-        }
 
         x = (i/4) % w;
         y = parseInt((i/4) / w);
-        if (this.i > this.buffersN && (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) && alpha > MOTION_ALPHA_THRESHOLD) {
-            newpx[i+3] = parseInt(alpha, 10);
-            points.push([x, y, [ newpx[i+0], newpx[i+1], newpx[i+2] ]]);
+        if (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) {
+            if (x < CANVAS_WIDTH/2) {
+                newpx[i+0] = 255;
+            } else {
+                newpx[i+2] = 255;
+            }
         }
+
     }
-
-    // remember buffered object coordinates
-    for (j = 0; j < k; j++) {
-        if (this.objectsBuffer[j]) {
-            points.push([ this.objectsBuffer[j][0], this.objectsBuffer[j][1],  this.objectsBuffer[j][6]]);
-            points.push([ this.objectsBuffer[j][0], this.objectsBuffer[j][1],  this.objectsBuffer[j][6]]);
-            points.push([ this.objectsBuffer[j][0], this.objectsBuffer[j][1],  this.objectsBuffer[j][6]]);
-        }
-    }
-
-
-    // set a k value dinamically based on the amount of moving points in the canvas
-    //k = parseInt((points.length*600)/(CANVAS_WIDTH*CANVAS_HEIGHT)/(GRID_FACTOR*GRID_FACTOR), 10);
-    //if (k === 0) k = 1;
-    //if (k > 3) k = 3;
 
     this.setData(newdata);
-
     var ctx = this.context;
 
-    // PAM algorythm (k-Means clustering)
-    for (step = 0; step < maxSteps; step++) {
-        for (j = 0; j < k; j++) {
-            if (0 === step) {
-                if (!this.objectsBuffer[j]) {
-                    x = parseInt(Math.random()*CANVAS_WIDTH, 10);
-                    y = parseInt(Math.random()*CANVAS_HEIGHT, 10);
-                    objects.push([x, y, [], [], 0, 0, [0, 0, 0]]); // x, y, innerPointsVec, innerPointsObj, mx, my, rgbFloatColor
-                } else {
-                    objects.push(this.objectsBuffer[j]);
+    // iterate through the main buffer
+    for (i = 0; i < len; i += 4) {
+
+        x = (i/4) % w;
+        y = parseInt((i/4) / w);
+        if (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) {
+            if (x < CANVAS_WIDTH/2) {
+                if (GRID_FACTOR*2 === x || w/2 - GRID_FACTOR*2 === x) {
+                    markPoint(ctx, x, y, 2, 'rgba(255, 0, 0, 0.1)');
+                    markPoint(ctx, x+w/2, y, 2, 'rgba(255, 0, 0, 0.1)');
+                    d = y - m*(x + w/2); // shifted to the right video stream
+                    fscan = function (X) { return h - (m*X + d); };
+
+                    ctx.beginPath();
+                    ctx.moveTo(w/2, fscan(w/2));
+                    ctx.lineTo(w, fscan(w));
+                    ctx.closePath();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(255, 0, 0, 0.1)';
+                    ctx.stroke();
+
+                    markPoint(ctx, w/2, h, 2, 'rgba(0, 255, 0, 1)');
+                    markPoint(ctx, w, 0, 2, 'rgba(0, 255, 0, 1)');
                 }
             } else {
-                // re-assign object x,y
-                objects[j][0] = objects[j][4]/objects[j][2].length;
-                objects[j][1] = objects[j][5]/objects[j][2].length;
-                objects[j][2] = [];
-                objects[j][3] = [];
-                objects[j][4] = 0;
-                objects[j][5] = 0;
-                objects[j][6] = [0, 0, 0];
+                newpx[i+2] = 255;
             }
         }
 
-        for (i = 0, l = points.length; i < l; i++) {
-            p = points[i];
-            dMin = Number.MAX_VALUE;
-            jMin = 0;
-            for (j = 0; j < k; j++) {
-                o = objects[j];
-                if ((d = distance2(p, o, 0)) < dMin) {
-                    dMin = d;
-                    jMin = j;
-                }
-            }
-            if ((step !== maxSteps-1 || dMin < maxDelta) && objects[jMin]) {
-                objects[jMin][2].push(p);
-                objects[jMin][3].push({ x: p[0], y: p[1] });
-                objects[jMin][4] += p[0];
-                objects[jMin][5] += p[1];
-            } else if (step < maxSteps) {
-                // means color
-                objects[jMin][6][0] += p[2][0]/l;
-                objects[jMin][6][1] += p[2][1]/l;
-                objects[jMin][6][2] += p[2][2]/l;
-            }
-        }
-    }
-
-    for (var j = 0; j < k; j++) {
-        var rpoints = objects[j][3];
-        if (rpoints.length < 14/GRID_FACTOR) {
-            continue;
-        }
-
-        // draw object hulls
-        this.hull.clear();
-        this.hull.compute(rpoints);
-        var indices = this.hull.getIndices();
-        if (indices && indices.length > 0) {
-
-            /// <---
-            var p, nx, ny, dx, dy, q, prevpx, c1, c2, cx = cy = countx = county = 0, maxpx = 30, modulus, versor, pcounter = 0;
-
-            for (i = 0, l = rpoints.length; i < l; i++) {
-                x = rpoints[i].x;
-                y = rpoints[i].y;
-
-                prevpx = this.buffers[this.buffersN-2].data;
-                lastpx = this.buffers[this.buffersN-1].data;
-
-                q = (y*w + x)*4;
-                c1 = [lastpx[q+0], lastpx[q+1], lastpx[q+2]];
-
-                cx = cy = 0;
-
-                for (dx = 0; dx < maxpx; dx++) {
-                    nx = x + dx;
-                    q = (y*w + nx)*4;
-                    c2 = [prevpx[q+0], prevpx[q+1], prevpx[q+2]];
-                    if (distance3(c1, c2, 0) < 50) {
-                        cx++;
-                    } else {
-                        break;
-                    }
-                }
-                for (dx = 0; dx > -maxpx; dx--) {
-                    nx = x + dx;
-                    q = (y*w + nx)*4;
-                    c2 = [prevpx[q+0], prevpx[q+1], prevpx[q+2]];
-                    if (distance3(c1, c2, 0) < 50) {
-                        cx--;
-                    } else {
-                        break;
-                    }
-                }
-                for (dy = 0; dy < maxpx; dy++) {
-                    ny = y + dy;
-                    q = (ny*w + x)*4;
-                    c2 = [prevpx[q+0], prevpx[q+1], prevpx[q+2]];
-                    if (distance3(c1, c2, 0) < 50) {
-                        cy++;
-                    } else {
-                        break;
-                    }
-                }
-                for (dy = 0; dy > -maxpx; dy--) {
-                    ny = y + dy;
-                    q = (ny*w + x)*4;
-                    c2 = [prevpx[q+0], prevpx[q+1], prevpx[q+2]];
-                    if (distance3(c1, c2, 0) < 50) {
-                        cy--;
-                    } else {
-                        break;
-                    }
-                }
-                countx += cx;
-                county += cy;
-                pcounter++;
-            }
-
-            modulus = Math.sqrt(countx*countx + county*county);
-            versor = [-countx/modulus, -county/modulus];
-
-            if (this.objectsBuffer[j]) {
-                var avgP = [(objects[j][0] + this.objectsBuffer[j][0])*0.5, (objects[j][1] + this.objectsBuffer[j][1])*0.5];
-                markPoint(ctx, avgP[0], avgP[1], 6, this.pointColors[j]);
-
-                ctx.beginPath();
-                ctx.moveTo(avgP[0], avgP[1]);
-                ctx.lineTo(avgP[0]+versor[0]*0.03*modulus, avgP[1]+versor[1]*0.03*modulus);
-                ctx.closePath();
-                ctx.lineWidth = 1;
-                ctx.strokeStyle = 'rgba(' + (150+3*cx) + ', 0, ' + (150+3*cy) + ', 0.7)';
-                ctx.stroke();
-            }
-            ///  --->
-
-            var rp = [rpoints[indices[0]].x, rpoints[indices[0]].y];
-            ctx.beginPath();
-            ctx.moveTo(rp[0], rp[1]);
-            ctx.fillStyle = this.pointColors[j];
-            ctx.strokeStyle = "rgba(100, 100, 100, 0)";
-            for (i = 1, l = indices.length; i < l; i++) {
-                rp = [rpoints[indices[i]].x, rpoints[indices[i]].y];
-                ctx.lineTo(rp[0], rp[1]);
-            }
-            ctx.fill();
-            ctx.stroke();
-            ctx.closePath();
-
-            this.objectsBuffer[j] = objects[j]; // update buffer
-        }
     }
 
 };
