@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>PS test</title>
+        <style>
+            video,
+            canvas {
+                width: 50%;
+                height: 50%;
+                position: absolute;
+                border: 1px solid black;
+                min-width: 480px;
+                box-sizing: border-box;
+                -webkit-transform: scaleX(-1); /* hack for mirroring */
+            }
+            video { top: 0; right: 0; background: #000; display: none; }
+            #canvas1 { top: 0; left: 0; }
+            #canvas1 { width: 100%; height: 100%; }
+        </style>
+    </head>
+    <body>
+
+        <video id="video" width="320" height="280" autoplay="true"></video>
+        <canvas id="canvas1"></canvas>
+
+        <!-- convex hull, taken from http://www.psychedelicdevelopment.com/grahamscan/ -->
+        <script src="grahamscan.js"></script>
+        <script src="main.js"></script>
+
+    </body>
+</html>
+
