@@ -1,22 +1,13 @@
 
-var CANVAS_WIDTH = 300,
-    CANVAS_HEIGHT = 200;
+var CANVAS_WIDTH = 400,
+    CANVAS_HEIGHT = 120;
 
 function $(id) { return document.getElementById(id); }
 
-navigator.webkitGetUserMedia(
-    { video: true },
-    iCanHazStream,
-    function () {
-        console.log('ah too bad')
-    }
-);
 
-function iCanHazStream(stream) {
-    var url = webkitURL.createObjectURL(stream);
-    $('video').src = url;
-    webkitRequestAnimationFrame(paintOnCanvas);
-}
+var url ="gopro3d/GoPro 3D  Winter X Games 2011 Highlights.sd.mp4";
+$('video').src = url;
+webkitRequestAnimationFrame(paintOnCanvas);
 
 function paintOnCanvas() {
     var transformador = transformadores[0];
@@ -99,13 +90,13 @@ CanvasFrame.prototype.transform = function() {
         len = newpx.length;
 
     var MOTION_COLOR_THRESHOLD = 50,
-        GRID_FACTOR = 4,
+        GRID_FACTOR = 10,
         MOTION_ALPHA_THRESHOLD = 120,
         alpha = 0,
         gamma = 3,
         i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT;
 
-    var k = 2;
+    var k = 4;
         p = o = null,
         dMin = d = 0,
         jMin = 0,
