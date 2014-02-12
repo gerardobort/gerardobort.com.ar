@@ -1,31 +1,31 @@
 
-var CANVAS_WIDTH = 400,
+var CANVAS_WIDTH = 240,
     CANVAS_HEIGHT = 120;
 
 function $(id) { return document.getElementById(id); }
 
 
-var url ="gopro3d/GoPro 3D  Winter X Games 2011 Highlights.sd.mp4";
-$('video').src = url;
-webkitRequestAnimationFrame(paintOnCanvas);
+var video = $('video'),
+    videoSource = 'gopro3d/GoPro 3D  Winter X Games 2011 Highlights.sd.mp4',
+    canvas = $('canvas1'),
+    canvasFrame = new CanvasFrame(canvas);
 
-$('canvas1').onclick = function () {
-    var video = $('video');
+canvas.onclick = function () {
     video.paused ? video.play() : video.pause();
-}
+};
+
+video.src = videoSource;
 
 function paintOnCanvas() {
-    var transformador = transformadores[0];
-    transformador.context.drawImage(
-        $('video'), 0, 0, 
-        CANVAS_WIDTH, CANVAS_HEIGHT
-    );
-
-    transformador.original = transformador.getData();
-    transformador.transform();
+    canvasFrame.context.drawImage(video, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    canvasFrame.original = canvasFrame.context.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    canvasFrame.buffer = canvasFrame.context.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT);
+    canvasFrame.buffer.data.set(canvasFrame.original.data);
+    canvasFrame.transform();
     webkitRequestAnimationFrame(paintOnCanvas);
 }
 
+webkitRequestAnimationFrame(paintOnCanvas);
 
 function CanvasFrame(canvas) {
     var that = this;
@@ -36,46 +36,11 @@ function CanvasFrame(canvas) {
     this.context = canvas.getContext('2d');
 
     // initialize variables
-    this.buffersN = 3;
-    this.buffers = [];
-    for (var i = 0, l = this.buffersN; i < l; i++) {
-        this.buffers.push(this.context.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT));
-    }
+    this.buffer = this.context.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // remember the original pixels
-    that.original = that.getData();
     this.i = 0;
-    this.hull = new ConvexHull();
-    this.pointColors = [
-        'rgba(0,     0,   0, 0.6)',
-        'rgba(0,     0, 255, 0.6)',
-        'rgba(0,   255,   0, 0.6)',
-        'rgba(0  , 255, 255, 0.6)',
-        'rgba(255,   0,   0, 0.6)',
-        'rgba(255,   0, 255, 0.6)',
-        'rgba(255, 255,   0, 0.6)',
-        'rgba(255, 255, 255, 0.6)'
-    ];
-    this.objectsBuffer = [];
 }
-
-CanvasFrame.prototype.getData = function() {
-
-    // shift buffers and store the last one
-    for (var i = 0, l = this.buffersN-1; i < l; i++) {
-        this.buffers[i] = this.buffers[i+1];
-    }
-    this.buffers[l] = this.context.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT);
-    if (this.original) {
-        this.buffers[l].data.set(this.original.data);
-    }
-
-    return this.context.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-};
-
-CanvasFrame.prototype.setData = function(data) {
-    return this.context.putImageData(data, 0, 0);
-};
 
 var distance2 = function (v1, v2, i) {
     return Math.sqrt(Math.pow(v1[i+0] - v2[i+0], 2) + Math.pow(v1[i+1] - v2[i+1], 2));
@@ -90,86 +55,56 @@ CanvasFrame.prototype.transform = function() {
 
     var videodata = this.original,
         videopx = videodata.data,
-        newdata = this.buffers[this.buffersN-1],
+        newdata = this.buffer,
         newpx = newdata.data,
         len = newpx.length;
 
-    var MOTION_COLOR_THRESHOLD = 50,
-        GRID_FACTOR = 3,
-        MOTION_ALPHA_THRESHOLD = 120,
-        RIGHT_SCANNING_ANGLE = 15, // deg
-        alpha = 0,
-        gamma = 3,
+    var MOTION_COLOR_THRESHOLD = 120,
+        GRID_FACTOR = 1,
+        RIGHT_SCANNING_ANGLE = 30, // deg
+        SCAN_MAX_OFFSET = GRID_FACTOR*10,
         i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT,
         fscan, d, m = Math.tan(Math.PI/(180/RIGHT_SCANNING_ANGLE));
 
-    // iterate through the main buffer
+    var dx, j, xr, yr, cl, cr, k, depth, colorDepth;
+    // iterate through the entire buffer
     for (i = 0; i < len; i += 4) {
-
         x = (i/4) % w;
-        y = parseInt((i/4) / w);
+        // only with the left side video...
+        if (x < CANVAS_WIDTH/2) {
+            y = parseInt((i/4) / w);
+            if (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) {
+                d = y - m*(x + w/2); // shifted to the right video stream
+                fscan = function (xi) { return h - (m*xi + d); };
 
-        if (x >= CANVAS_WIDTH/2) {
-            newpx[i+3] = 20;
-        }
-        /*
-        if (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) {
-            if (x < CANVAS_WIDTH/2) {
-                newpx[i+0] = 255;
-            } else {
-                newpx[i+2] = 255;
-            }
-        }
-        */
-    }
-    this.setData(newdata);
-    var ctx = this.context;
+                // pick the left side pixel color
+                cl = [videopx[i+0], videopx[i+1], videopx[i+2]];
+                for (dx = -SCAN_MAX_OFFSET; dx < SCAN_MAX_OFFSET; dx+=2) {
+                    xr = w/2 + x + dx;
+                    yr = parseInt(fscan(xr), 10);
+                    if (0 === dx || xr < w/2 || xr > w || yr < 0 || yr > h) continue;
+                    j = (yr*w + xr)*4;
 
-    var dx, j, xr, yr, cl, cr;
-    // iterate through the main buffer
-    for (i = 0; i < len; i += 4) {
+                    // pick the right side scanning pixel color
+                    cr = [videopx[j+0], videopx[j+1], videopx[j+2]];
 
-        x = (i/4) % w;
-        y = parseInt((i/4) / w);
-        if (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) {
-            if (x < CANVAS_WIDTH/2) {
-                //if (GRID_FACTOR*2 === x || w/2 - GRID_FACTOR*2 === x) {
-                    //markPoint(ctx, x, y, 2, 'rgba(255, 0, 0, 0.1)');
-                    //markPoint(ctx, x+w/2, y, 2, 'rgba(255, 0, 0, 0.1)');
-                    d = y - m*(x + w/2); // shifted to the right video stream
-                    fscan = function (xi) { return h - (m*xi + d); };
-
-
-                    cl = [newpx[i+0], newpx[i+1], newpx[i+2]];
-                    for (dx = -20; dx < 20; dx++) {
-                        if (x+dx < 0 || x+dx > w/2) continue;
-                        xr = w/2 + x + dx;
-                        yr = parseInt(fscan(xr), 10);
-                        j = (yr*w + xr)*4;
-                        cr = [newpx[j+0], newpx[j+1], newpx[j+2]];
-                        if (distance3(cl, cr, 0) < 150) {
-                            newpx[j+3] = 255 - ((255/40) * (dx + 20)); // estimate depth
-                            continue;
-                        }
+                    // if matches
+                    if (distance3(cl, cr, 0) < MOTION_COLOR_THRESHOLD) {
+                        k = (y*w + w/2 + x)*4;
+                        depth = 1/(2*SCAN_MAX_OFFSET) * (dx + SCAN_MAX_OFFSET); // estimate depth 0 to 1
+                        colorDepth = parseInt(depth*255, 10);
+                        newpx[k+0] = colorDepth;
+                        //newpx[k+1] = colorDepth;
+                        //newpx[k+2] = colorDepth;
+                        //newpx[k+3] = colorDepth;
+                        break;
                     }
-
-                    /*
-                    ctx.beginPath();
-                    ctx.moveTo(w/2, fscan(w/2));
-                    ctx.lineTo(w, fscan(w));
-                    ctx.closePath();
-                    ctx.lineWidth = 1;
-                    ctx.strokeStyle = 'rgba(255, 0, 0, 0.1)';
-                    ctx.stroke();
-                    */
-                //}
-            } else {
-                //newpx[i+2] = 255;
+                }
             }
+        } else {
         }
-
     }
-    this.setData(newdata);
+    this.context.putImageData(newdata, 0, 0);
 
 };
 
@@ -208,8 +143,3 @@ var markPoint = function (context, x, y, radius, color) {
     context.strokeStyle = color;
     context.stroke();
 };
-
-var transformadores = [
-    new CanvasFrame($('canvas1'))
-];
-
