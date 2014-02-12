@@ -95,9 +95,9 @@ CanvasFrame.prototype.transform = function() {
         len = newpx.length;
 
     var MOTION_COLOR_THRESHOLD = 50,
-        GRID_FACTOR = 10,
+        GRID_FACTOR = 3,
         MOTION_ALPHA_THRESHOLD = 120,
-        RIGHT_SCANNING_ANGLE = 30, // deg
+        RIGHT_SCANNING_ANGLE = 15, // deg
         alpha = 0,
         gamma = 3,
         i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT,
@@ -108,6 +108,11 @@ CanvasFrame.prototype.transform = function() {
 
         x = (i/4) % w;
         y = parseInt((i/4) / w);
+
+        if (x >= CANVAS_WIDTH/2) {
+            newpx[i+3] = 20;
+        }
+        /*
         if (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) {
             if (x < CANVAS_WIDTH/2) {
                 newpx[i+0] = 255;
@@ -115,12 +120,12 @@ CanvasFrame.prototype.transform = function() {
                 newpx[i+2] = 255;
             }
         }
-
+        */
     }
-
     this.setData(newdata);
     var ctx = this.context;
 
+    var dx, j, xr, yr, cl, cr;
     // iterate through the main buffer
     for (i = 0; i < len; i += 4) {
 
@@ -128,12 +133,27 @@ CanvasFrame.prototype.transform = function() {
         y = parseInt((i/4) / w);
         if (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) {
             if (x < CANVAS_WIDTH/2) {
-                if (GRID_FACTOR*2 === x || w/2 - GRID_FACTOR*2 === x) {
-                    markPoint(ctx, x, y, 2, 'rgba(255, 0, 0, 0.1)');
-                    markPoint(ctx, x+w/2, y, 2, 'rgba(255, 0, 0, 0.1)');
+                //if (GRID_FACTOR*2 === x || w/2 - GRID_FACTOR*2 === x) {
+                    //markPoint(ctx, x, y, 2, 'rgba(255, 0, 0, 0.1)');
+                    //markPoint(ctx, x+w/2, y, 2, 'rgba(255, 0, 0, 0.1)');
                     d = y - m*(x + w/2); // shifted to the right video stream
-                    fscan = function (X) { return h - (m*X + d); };
+                    fscan = function (xi) { return h - (m*xi + d); };
 
+
+                    cl = [newpx[i+0], newpx[i+1], newpx[i+2]];
+                    for (dx = -20; dx < 20; dx++) {
+                        if (x+dx < 0 || x+dx > w/2) continue;
+                        xr = w/2 + x + dx;
+                        yr = parseInt(fscan(xr), 10);
+                        j = (yr*w + xr)*4;
+                        cr = [newpx[j+0], newpx[j+1], newpx[j+2]];
+                        if (distance3(cl, cr, 0) < 150) {
+                            newpx[j+3] = 255 - ((255/40) * (dx + 20)); // estimate depth
+                            continue;
+                        }
+                    }
+
+                    /*
                     ctx.beginPath();
                     ctx.moveTo(w/2, fscan(w/2));
                     ctx.lineTo(w, fscan(w));
@@ -141,16 +161,15 @@ CanvasFrame.prototype.transform = function() {
                     ctx.lineWidth = 1;
                     ctx.strokeStyle = 'rgba(255, 0, 0, 0.1)';
                     ctx.stroke();
-
-                    markPoint(ctx, w/2, h, 2, 'rgba(0, 255, 0, 1)');
-                    markPoint(ctx, w, 0, 2, 'rgba(0, 255, 0, 1)');
-                }
+                    */
+                //}
             } else {
-                newpx[i+2] = 255;
+                //newpx[i+2] = 255;
             }
         }
 
     }
+    this.setData(newdata);
 
 };
 
