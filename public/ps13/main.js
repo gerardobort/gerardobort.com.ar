@@ -31,6 +31,15 @@ video.addEventListener('loadedmetadata', function () {
                 playPause: function () {
                     video.paused ? video.play() : video.pause();
                 },
+                take3dSnapshot: function () {
+                    if (demo) {
+                        if (!window.initialized) {
+                            window.init();
+                            window.animate();
+                            window.initialized = true;
+                        }
+                    }
+                }
             };
             gui = new dat.GUI({ width: 500 });
             gui.add(demo, 'MOTION_COLOR_THRESHOLD', 0, 255).step(1);
@@ -42,7 +51,9 @@ video.addEventListener('loadedmetadata', function () {
             gui.add(demo, 'DEPTH_MAP_BLUR', 0, 20);
             gui.add(demo, 'VIDEO_POSITION', 0, video.duration).onFinishChange(function (t) { video.currentTime = t; });
             gui.add(demo, 'playPause');
+            gui.add(demo, 'take3dSnapshot');
             video.volume = 0;
+            video.currentTime = 0;
         }
 
         canvasFrame.transform();
