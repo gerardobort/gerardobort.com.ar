@@ -6,7 +6,7 @@ if ( ! Detector.webgl ) {
 
 }
 
-var container, stats;
+var container;
 
 var camera, controls, scene, renderer;
 
@@ -25,16 +25,19 @@ function init() {
     container = document.getElementById( 'container' );
 
     camera = new THREE.PerspectiveCamera( 60, 1/*window.innerWidth / window.innerHeight*/, 1, 2000 );
+    camera.position.x = 0;
+    camera.position.y = 100;
+    camera.position.z = 50;
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
 
     scene = new THREE.Scene();
 
-    controls = new THREE.FirstPersonControls( camera );
-    controls.movementSpeed = 100;
-    controls.lookSpeed = 0.1;
+    controls = new THREE.TrackballControls( camera );
+    controls.rotateSpeed = 1.0;
+    controls.zoomSpeed = 1.2;
+    controls.panSpeed = 0.8;
 
     data = generateHeight( worldWidth, worldDepth );
-
-    camera.position.y = data[ worldHalfWidth + worldHalfDepth * worldWidth ] + 50;
 
     var geometry = new THREE.PlaneGeometry( worldWidth, worldDepth, worldWidth - 1, worldDepth - 1 );
     geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
@@ -57,12 +60,6 @@ function init() {
 
     container.appendChild( renderer.domElement );
 
-    stats = new Stats();
-    stats.domElement.style.position = 'absolute';
-    stats.domElement.style.top = '0px';
-    container.appendChild( stats.domElement );
-
-    //
 
     window.addEventListener( 'resize', onWindowResize, false );
 
@@ -70,10 +67,10 @@ function init() {
 
 function onWindowResize() {
 
-    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = 1;//window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
 
-    renderer.setSize( window.innerWidth, window.innerHeight );
+    //renderer.setSize( window.innerWidth, window.innerHeight );
 
     controls.handleResize();
 
@@ -117,7 +114,6 @@ function animate() {
     requestAnimationFrame( animate );
 
     render();
-    stats.update();
 
 }
 

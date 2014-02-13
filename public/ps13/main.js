@@ -22,7 +22,7 @@ video.addEventListener('loadedmetadata', function () {
             demo = {
                 MOTION_COLOR_THRESHOLD: 66,
                 GRID_FACTOR: 1,
-                RIGHT_SCANNING_ANGLE: -30, // deg
+                RIGHT_SCANNING_ANGLE: 30, // deg
                 SCAN_MAX_OFFSET: 40,
                 SCAN_OFFSET_STEP: 3,
                 STOCASTIC_THRESHOLD: 0,
@@ -49,7 +49,8 @@ video.addEventListener('loadedmetadata', function () {
             gui.add(demo, 'SCAN_OFFSET_STEP', 1, 10).step(1);
             gui.add(demo, 'STOCASTIC_THRESHOLD', 0, 1).step(0.0001);
             gui.add(demo, 'DEPTH_MAP_BLUR', 0, 20);
-            gui.add(demo, 'VIDEO_POSITION', 0, video.duration).onFinishChange(function (t) { video.currentTime = t; });
+            gui.add(video, 'currentTime', 0, video.duration)
+                .listen();
             gui.add(demo, 'playPause');
             gui.add(demo, 'take3dSnapshot');
             video.volume = 0;
@@ -102,7 +103,7 @@ CanvasFrame.prototype.transform = function() {
         len = newpx.length;
 
     var i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT,
-        fscan, d, m = Math.tan(Math.PI/(180/demo.RIGHT_SCANNING_ANGLE)),
+        fscan, d, m = Math.tan(Math.PI/(180/-demo.RIGHT_SCANNING_ANGLE)),
         dx, j, xr, yr, cl, cr, k, depth, colorDepth, offsetFrom, offsetTo;
 
     // iterate through the entire buffer
