@@ -58,6 +58,9 @@ video.addEventListener('loadedmetadata', function () {
         }
 
         canvasFrame.transform();
+        if (demo && window.initialized) {
+            updateHeightmap();
+        }
 
         webkitRequestAnimationFrame(paintOnCanvas);
     }

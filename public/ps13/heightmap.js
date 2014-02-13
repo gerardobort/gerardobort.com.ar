@@ -37,19 +37,16 @@ function init() {
     controls.zoomSpeed = 1.2;
     controls.panSpeed = 0.8;
 
-    data = generateHeight( worldWidth, worldDepth );
 
     var geometry = new THREE.PlaneGeometry( worldWidth, worldDepth, worldWidth - 1, worldDepth - 1 );
     geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
+    geometry.dynamic = true;
 
-    for ( var i = 0, l = geometry.vertices.length; i < l; i ++ ) {
-        geometry.vertices[ i ].y = data[ i ];
-    }
-
-    texture = new THREE.Texture( generateTexture( data, worldWidth, worldDepth ), new THREE.UVMapping(), THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping );
+    texture = new THREE.Texture( generateTexture( worldWidth, worldDepth ), new THREE.UVMapping(), THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping );
     texture.needsUpdate = true;
 
     mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { map: texture } ) );
+    mesh.name = 'heightmap';
     scene.add( mesh );
 
     renderer = new THREE.WebGLRenderer();
@@ -57,19 +54,29 @@ function init() {
     renderer.setSize( 600, 600 );
 
     container.innerHTML = "";
-
     container.appendChild( renderer.domElement );
 
-
     window.addEventListener( 'resize', onWindowResize, false );
+}
 
+function updateHeightmap() {
+    var mesh = scene.getObjectByName('heightmap'),
+        geometry = mesh.geometry,
+        texture = mesh.material.map;
+
+    data = generateHeight( worldWidth, worldDepth );
+    for ( var i = 0, l = geometry.vertices.length; i < l; i ++ ) {
+        mesh.geometry.vertices[ i ].y = data[ i ];
+    }
+    geometry.verticesNeedUpdate = true;
+
+    texture.image.getContext('2d').drawImage( canvas, 0, 0 );
+    texture.needsUpdate = true;
 }
 
 function onWindowResize() {
-
     camera.aspect = 1;//window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
-
     //renderer.setSize( window.innerWidth, window.innerHeight );
 
     controls.handleResize();
@@ -90,7 +97,7 @@ function generateHeight( width, height ) {
 
 }
 
-function generateTexture( data, width, height ) {
+function generateTexture( width, height ) {
 
     var canvasScaled, context;
 
