@@ -1,9 +1,9 @@
 
-var CANVAS_WIDTH = 300,
+var demo = null,
+    CANVAS_WIDTH = 300,
     CANVAS_HEIGHT = 150;
 
 function $(id) { return document.getElementById(id); }
-
 
 var video = $('video'),
     videoSource = 'gopro3d/GoPro 3D  Winter X Games 2011 Highlights.sd.mp4',
@@ -11,22 +11,57 @@ var video = $('video'),
     canvasDepth = $('canvas2'),
     canvasFrame = new CanvasFrame(canvas);
 
-canvas.onclick = function () {
-    video.paused ? video.play() : video.pause();
-};
+video.addEventListener('loadedmetadata', function () {
+    function paintOnCanvas() {
+        canvasFrame.context.drawImage(video, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        canvasFrame.original = canvasFrame.context.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        canvasFrame.buffer = canvasFrame.context.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT);
+        canvasFrame.buffer.data.set(canvasFrame.original.data);
+
+        if (!demo) {
+            demo = {
+                MOTION_COLOR_THRESHOLD: 66,
+                GRID_FACTOR: 1,
+                RIGHT_SCANNING_ANGLE: -30, // deg
+                SCAN_MAX_OFFSET: 40,
+                SCAN_OFFSET_STEP: 3,
+                STOCASTIC_THRESHOLD: 0,
+                DEPTH_MAP_BLUR: 0,
+                VIDEO_POSITION: 0,
+                playPause: function () {
+                    video.paused ? video.play() : video.pause();
+                },
+            };
+            gui = new dat.GUI({ width: 500 });
+            gui.add(demo, 'MOTION_COLOR_THRESHOLD', 0, 255).step(1);
+            gui.add(demo, 'GRID_FACTOR', 1, 40).step(1);
+            gui.add(demo, 'RIGHT_SCANNING_ANGLE', -45, 45);
+            gui.add(demo, 'SCAN_MAX_OFFSET', 2, 80).step(1);
+            gui.add(demo, 'SCAN_OFFSET_STEP', 1, 10).step(1);
+            gui.add(demo, 'STOCASTIC_THRESHOLD', 0, 1).step(0.0001);
+            gui.add(demo, 'DEPTH_MAP_BLUR', 0, 20);
+            gui.add(demo, 'VIDEO_POSITION', 0, video.duration).onFinishChange(function (t) { video.currentTime = t; });
+            gui.add(demo, 'playPause');
+        }
+
+        canvasFrame.transform();
+
+        webkitRequestAnimationFrame(paintOnCanvas);
+    }
+
+    webkitRequestAnimationFrame(paintOnCanvas);
+});
 
 video.src = videoSource;
 
-function paintOnCanvas() {
-    canvasFrame.context.drawImage(video, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    canvasFrame.original = canvasFrame.context.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    canvasFrame.buffer = canvasFrame.context.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT);
-    canvasFrame.buffer.data.set(canvasFrame.original.data);
-    canvasFrame.transform();
-    webkitRequestAnimationFrame(paintOnCanvas);
-}
 
-webkitRequestAnimationFrame(paintOnCanvas);
+var distance2 = function (v1, v2, i) {
+    return Math.sqrt(Math.pow(v1[i+0] - v2[i+0], 2) + Math.pow(v1[i+1] - v2[i+1], 2));
+};
+
+var distance3 = function (v1, v2, i) {
+    return Math.sqrt(Math.pow(v1[i+0] - v2[i+0], 2) + Math.pow(v1[i+1] - v2[i+1], 2) + Math.pow(v1[i+2] - v2[i+2], 2));
+};
 
 function CanvasFrame(canvas) {
     var that = this;
@@ -42,21 +77,11 @@ function CanvasFrame(canvas) {
 
     // initialize variables
     this.buffer = this.context.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    // remember the original pixels
-    this.i = 0;
 }
-
-var distance2 = function (v1, v2, i) {
-    return Math.sqrt(Math.pow(v1[i+0] - v2[i+0], 2) + Math.pow(v1[i+1] - v2[i+1], 2));
-};
-var distance3 = function (v1, v2, i) {
-    return Math.sqrt(Math.pow(v1[i+0] - v2[i+0], 2) + Math.pow(v1[i+1] - v2[i+1], 2) + Math.pow(v1[i+2] - v2[i+2], 2));
-};
 
 CanvasFrame.prototype.transform = function() {
 
-    this.i++;
+    canvasDepth.style.webkitFilter = 'blur(' + demo.DEPTH_MAP_BLUR + 'px)';
 
     var videodata = this.original,
         videopx = videodata.data,
@@ -64,36 +89,30 @@ CanvasFrame.prototype.transform = function() {
         newpx = newdata.data,
         len = newpx.length;
 
-    var MOTION_COLOR_THRESHOLD = 40,
-        GRID_FACTOR = 1,
-        RIGHT_SCANNING_ANGLE = -1 * 30, // deg
-        SCAN_MAX_OFFSET = GRID_FACTOR*20,
-        i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT,
-        fscan, d, m = Math.tan(Math.PI/(180/RIGHT_SCANNING_ANGLE));
-
-    var dx, j, xr, yr, cl, cr, k, depth, colorDepth, offsetFrom, offsetTo;
-
-    var ctx = this.context;
+    var i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT,
+        fscan, d, m = Math.tan(Math.PI/(180/demo.RIGHT_SCANNING_ANGLE)),
+        dx, j, xr, yr, cl, cr, k, depth, colorDepth, offsetFrom, offsetTo;
 
     // iterate through the entire buffer
     for (i = 0; i < len; i += 4) {
+
+        // default is full depth
+        newpx[i+0] = 0;
+        newpx[i+1] = 0;
+        newpx[i+2] = 0;
+        newpx[i+3] = 255;
+
         x = (i/4) % w;
         // only with the left side video...
         if (x < CANVAS_WIDTH/2) {
             y = parseInt((i/4) / w);
-            if (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) {
+            if (!(x % demo.GRID_FACTOR) && !(y % demo.GRID_FACTOR) && Math.random() > demo.STOCASTIC_THRESHOLD) {
                 d = y - m*(x + w/2); // shifted to the right video stream
                 fscan = function (xi) { return /*h -*/ (m*xi + d); };
 
-                // default is full depth
-                newpx[i+0] = 0;
-                newpx[i+1] = 0;
-                newpx[i+2] = 0;
-                newpx[i+3] = 255;
-
                 // pick the left side pixel color
                 cl = [videopx[i+0], videopx[i+1], videopx[i+2]];
-                for (dx = SCAN_MAX_OFFSET; dx > -SCAN_MAX_OFFSET; dx-=3) {
+                for (dx = demo.SCAN_MAX_OFFSET; dx > -demo.SCAN_MAX_OFFSET; dx-=demo.SCAN_OFFSET_STEP) {
                     xr = w/2 + x + dx;
                     yr = parseInt(fscan(xr), 10);
                     if (0 === dx || xr < w/2 || xr > w || yr < 0 || yr > h) continue;
@@ -102,10 +121,10 @@ CanvasFrame.prototype.transform = function() {
                     // pick the right side scanning pixel color
                     cr = [videopx[j+0], videopx[j+1], videopx[j+2]];
 
-
-                    // if matches then draw the depthmap at the right
-                    if (distance3(cl, cr, 0) < MOTION_COLOR_THRESHOLD) {
-                        depth = 1/(2*SCAN_MAX_OFFSET) * (dx + SCAN_MAX_OFFSET); // estimate depth 0 to 1 (higher is deeper)
+                    // if it matches then draw in the depthmap 
+                    if (distance3(cl, cr, 0) < demo.MOTION_COLOR_THRESHOLD) {
+                        // estimate depth 0 to 1 (higher is deeper)
+                        depth = 1/(2*demo.SCAN_MAX_OFFSET) * (dx + demo.SCAN_MAX_OFFSET);
 
                         colorDepth = parseInt(depth*255, 10);
 
@@ -115,7 +134,6 @@ CanvasFrame.prototype.transform = function() {
                         newpx[i+3] = 255;
                         break;
                     }
-
                 }
             }
         }
@@ -124,38 +142,3 @@ CanvasFrame.prototype.transform = function() {
 
 };
 
-Array.prototype.v3_reflect = function (normal) {
-    var reflectedVector = [],
-        vector = this,
-        dotProduct = ((vector[0] * normal[0]) + (vector[1] * normal[1])) + (vector[2] * normal[2]);
-    reflectedVector[0] = vector[0] - (2 * normal[0]) * dotProduct;
-    reflectedVector[1] = vector[1] - (2 * normal[1]) * dotProduct;
-    reflectedVector[2] = vector[2] - (2 * normal[2]) * dotProduct;
-    return reflectedVector;
-};
-Array.prototype.v3_cos = function (b) {
-    var a = this;
-    return a.v3_dotProduct(b)/(a.v3_getModule()*b.v3_getModule());
-};
-Array.prototype.v3_dotProduct = function (value) {
-    var a = this;
-    if (typeof value === 'number') {
-        return [a[0]*value, a[1]*value, a[2]*value];
-    } else {
-        return [a[0]*value[0], a[1]*value[1], a[2]*value[2]];
-    } 
-};
-Array.prototype.v3_getModule = function () {
-    var vector = this;
-    return Math.sqrt(vector[0]*vector[0] + vector[1]*vector[1] + vector[2]*vector[2]);
-};
-
-var markPoint = function (context, x, y, radius, color) {
-    context.beginPath();
-    context.arc(x, y, radius, 0, 2 * Math.PI, false);
-    context.fillStyle = color;
-    context.fill();
-    context.lineWidth = 0;
-    context.strokeStyle = color;
-    context.stroke();
-};
