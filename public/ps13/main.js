@@ -28,7 +28,8 @@ video.addEventListener('loadedmetadata', function () {
                 STOCASTIC_RATIO: 0,
                 DEPTH_SATURATION: 1,
                 PROCESSING_RATIO: 1,
-                BLUR: true,
+                SIMPLE_BLUR: true,
+                GAUSSIAN_BLUR: 0,
                 VIDEO_POSITION: 0,
                 playPause: function () {
                     video.paused ? video.play() : video.pause();
@@ -52,7 +53,8 @@ video.addEventListener('loadedmetadata', function () {
             gui.add(demo, 'STOCASTIC_RATIO', 0, 1).step(0.0001);
             gui.add(demo, 'DEPTH_SATURATION', 0, 10).step(0.0001);
             gui.add(demo, 'PROCESSING_RATIO', 1, 30).step(1);
-            gui.add(demo, 'BLUR');
+            gui.add(demo, 'SIMPLE_BLUR');
+            gui.add(demo, 'GAUSSIAN_BLUR', 0, 10).step(1);
             gui.add(video, 'currentTime', 0, video.duration)
                 .listen();
             gui.add(demo, 'playPause');
@@ -168,10 +170,13 @@ CanvasFrame.prototype.transform = function() {
             }
         }
     }
-    if (demo.BLUR) {
+    if (demo.SIMPLE_BLUR) {
         Filter.blur(newdata);
     }
     this.depthContext.putImageData(newdata, 0, 0);
+    if (demo.GAUSSIAN_BLUR > 0) {
+        stackBlurCanvasRGB('canvas2', 0, 0, canvasDepth.width, canvasDepth.height, demo.GAUSSIAN_BLUR);
+    }
 
 };
 
