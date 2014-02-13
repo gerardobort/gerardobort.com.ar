@@ -20,10 +20,10 @@ video.addEventListener('loadedmetadata', function () {
 
         if (!demo) {
             demo = {
-                MOTION_COLOR_THRESHOLD: 66,
+                MOTION_COLOR_THRESHOLD: 50,
                 GRID_FACTOR: 1,
                 RIGHT_SCANNING_ANGLE: 30, // deg
-                SCAN_MAX_OFFSET: 40,
+                SCAN_MAX_OFFSET: 30,
                 SCAN_OFFSET_STEP: 3,
                 STOCASTIC_THRESHOLD: 0,
                 DEPTH_MAP_BLUR: 0,
@@ -154,6 +154,7 @@ CanvasFrame.prototype.transform = function() {
             }
         }
     }
+    Filter.blur(newdata);
     this.depthContext.putImageData(newdata, 0, 0);
 
 };
