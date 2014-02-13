@@ -42,6 +42,7 @@ video.addEventListener('loadedmetadata', function () {
             gui.add(demo, 'DEPTH_MAP_BLUR', 0, 20);
             gui.add(demo, 'VIDEO_POSITION', 0, video.duration).onFinishChange(function (t) { video.currentTime = t; });
             gui.add(demo, 'playPause');
+            video.volume = 0;
         }
 
         canvasFrame.transform();
