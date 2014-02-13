@@ -35,7 +35,7 @@ video.addEventListener('loadedmetadata', function () {
             gui = new dat.GUI({ width: 500 });
             gui.add(demo, 'MOTION_COLOR_THRESHOLD', 0, 255).step(1);
             gui.add(demo, 'GRID_FACTOR', 1, 40).step(1);
-            gui.add(demo, 'RIGHT_SCANNING_ANGLE', -45, 45);
+            gui.add(demo, 'RIGHT_SCANNING_ANGLE', -180, 180);
             gui.add(demo, 'SCAN_MAX_OFFSET', 2, 80).step(1);
             gui.add(demo, 'SCAN_OFFSET_STEP', 1, 10).step(1);
             gui.add(demo, 'STOCASTIC_THRESHOLD', 0, 1).step(0.0001);
