@@ -64,7 +64,7 @@ CanvasFrame.prototype.transform = function() {
         newpx = newdata.data,
         len = newpx.length;
 
-    var MOTION_COLOR_THRESHOLD = 80,
+    var MOTION_COLOR_THRESHOLD = 40,
         GRID_FACTOR = 1,
         RIGHT_SCANNING_ANGLE = -1 * 30, // deg
         SCAN_MAX_OFFSET = GRID_FACTOR*20,
