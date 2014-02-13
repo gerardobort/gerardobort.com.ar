@@ -24,25 +24,23 @@ function init() {
 
     container = document.getElementById( 'container' );
 
-    camera = new THREE.PerspectiveCamera( 60, 1/*window.innerWidth / window.innerHeight*/, 1, 20000 );
+    camera = new THREE.PerspectiveCamera( 60, 1/*window.innerWidth / window.innerHeight*/, 1, 2000 );
 
     scene = new THREE.Scene();
 
     controls = new THREE.FirstPersonControls( camera );
-    controls.movementSpeed = 1000;
+    controls.movementSpeed = 100;
     controls.lookSpeed = 0.1;
 
     data = generateHeight( worldWidth, worldDepth );
 
-    camera.position.y = data[ worldHalfWidth + worldHalfDepth * worldWidth ] + 500;
+    camera.position.y = data[ worldHalfWidth + worldHalfDepth * worldWidth ] + 50;
 
-    var geometry = new THREE.PlaneGeometry( 7500, 7500, worldWidth - 1, worldDepth - 1 );
+    var geometry = new THREE.PlaneGeometry( worldWidth, worldDepth, worldWidth - 1, worldDepth - 1 );
     geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
 
     for ( var i = 0, l = geometry.vertices.length; i < l; i ++ ) {
-
-        geometry.vertices[ i ].y = data[ i ] * 10;
-
+        geometry.vertices[ i ].y = data[ i ];
     }
 
     texture = new THREE.Texture( generateTexture( data, worldWidth, worldDepth ), new THREE.UVMapping(), THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping );
@@ -52,8 +50,8 @@ function init() {
     scene.add( mesh );
 
     renderer = new THREE.WebGLRenderer();
-    renderer.setClearColor( 0xbfd1e5 );
-    renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer.setClearColor( 0x000000 );
+    renderer.setSize( 600, 600 );
 
     container.innerHTML = "";
 
