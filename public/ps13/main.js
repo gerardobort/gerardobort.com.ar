@@ -48,7 +48,7 @@ video.addEventListener('loadedmetadata', function () {
                 }
             };
             gui = new dat.GUI({ width: 400 });
-            gui.add(demo, 'EPIPOLES_OFFSET_X', -3000, 3000).step(1);
+            gui.add(demo, 'EPIPOLES_OFFSET_X', - CANVAS_WIDTH, CANVAS_WIDTH).step(1);
             gui.add(demo, 'EPIPOLES_OFFSET_Y', - CANVAS_HEIGHT/2, CANVAS_HEIGHT/2).step(1);
             gui.add(demo, 'COLOR_THRESHOLD', 0, 255).step(1);
             gui.add(demo, 'SCAN_MAX_OFFSET', 2, 80).step(1);
@@ -56,7 +56,7 @@ video.addEventListener('loadedmetadata', function () {
             gui.add(demo, 'GRID_FACTOR', 1, 40).step(1);
             gui.add(demo, 'STOCASTIC_RATIO', 0, 1).step(0.0001);
             gui.add(demo, 'DEPTH_SATURATION', 0, 10).step(0.0001);
-            gui.add(demo, 'DEPTH_SCALE', 1, 20).step(0.0001);
+            gui.add(demo, 'DEPTH_SCALE', -20, 20).step(1);
             gui.add(demo, 'PROCESSING_RATIO', 1, 30).step(1);
             gui.add(demo, 'SIMPLE_BLUR');
             gui.add(demo, 'GAUSSIAN_BLUR', 0, 10).step(1);
@@ -137,19 +137,19 @@ CanvasFrame.prototype.transform = function() {
                 Dy = y - h/2 + demo.EPIPOLES_OFFSET_Y;
                 m = Dy/Dx;
                 d = y - m*(x + w/2);
-                fscan = function (xi) { return (m*xi + d); };
+                fscan = function (xi) { return (m*(xi + demo.EPIPOLES_OFFSET_X) + d); };
 
                 minD = Number.MAX_VALUE;
                 count = 0;
                 // default is full depth
-                depth = 0;
+                depth = 1;
 
                 // pick the left side pixel color
                 cl = [videopx[i+0], videopx[i+1], videopx[i+2]];
                 for (dx = demo.SCAN_MAX_OFFSET; dx > -demo.SCAN_MAX_OFFSET; dx-=demo.SCAN_OFFSET_STEP) {
                     xr = w/2 + x + dx;
                     yr = parseInt(fscan(xr), 10);
-                    if (0 === dx || xr < w/2 || xr > w || yr < 0 || yr > h) continue;
+                    if (xr < w/2 || xr > w || yr < 0 || yr > h) continue;
                     j = (yr*w + xr)*4;
 
                     if (Math.random() > 0.9999) {
@@ -170,7 +170,7 @@ CanvasFrame.prototype.transform = function() {
                     if ((distance = distance3(cl, cr, 0)) < minD) {
                         count++;
                         // estimate depth from 0 to 1 (higher is deeper)
-                        depth = 1/(2*demo.SCAN_MAX_OFFSET) * (dx + demo.SCAN_MAX_OFFSET);
+                        depth = 1/(2*demo.SCAN_MAX_OFFSET) * (Math.abs(dx) + demo.SCAN_MAX_OFFSET);
                         minD = distance;
                         if (count > demo.SCAN_MAX_OFFSET || minD < demo.COLOR_THRESHOLD) {
                             break;
