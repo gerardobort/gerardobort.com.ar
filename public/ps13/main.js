@@ -1,12 +1,12 @@
 
 var demo = null,
-    CANVAS_WIDTH = 300,
-    CANVAS_HEIGHT = 150;
+    CANVAS_WIDTH = 2*320,
+    CANVAS_HEIGHT = 2*160;
 
 function $(id) { return document.getElementById(id); }
 
 var video = $('video'),
-    videoSource = 'gopro3d/GoPro 3D  Winter X Games 2011 Highlights.sd.mp4',
+    videoSource = 'gopro3d/GoPro 3D  Winter X Games 2011 Highlights.sd.mp4', // 640x360
     canvas = $('canvas1'),
     canvasDepth = $('canvas2'),
     canvasFrame = new CanvasFrame(canvas);
@@ -20,15 +20,16 @@ video.addEventListener('loadedmetadata', function () {
 
         if (!demo) {
             demo = {
-                COLOR_THRESHOLD: 30,
-                SCANNING_ANGLE: 30, // deg
-                SCAN_MAX_OFFSET: 10,
+                EPIPOLES_OFFSET_X: 10,
+                EPIPOLES_OFFSET_Y: 0,
+                COLOR_THRESHOLD: 60,
+                SCAN_MAX_OFFSET: 5,
                 SCAN_OFFSET_STEP: 2,
                 GRID_FACTOR: 1,
                 STOCASTIC_RATIO: 0,
                 DEPTH_SATURATION: 1,
-                PROCESSING_RATIO: 1,
-                SIMPLE_BLUR: true,
+                PROCESSING_RATIO: 2,
+                SIMPLE_BLUR: false,
                 GAUSSIAN_BLUR: 0,
                 VIDEO_POSITION: 0,
                 playPause: function () {
@@ -45,8 +46,9 @@ video.addEventListener('loadedmetadata', function () {
                 }
             };
             gui = new dat.GUI({ width: 400 });
+            gui.add(demo, 'EPIPOLES_OFFSET_X', - CANVAS_WIDTH/2, CANVAS_WIDTH/2).step(1);
+            gui.add(demo, 'EPIPOLES_OFFSET_Y', - CANVAS_HEIGHT/2, CANVAS_HEIGHT/2).step(1);
             gui.add(demo, 'COLOR_THRESHOLD', 0, 255).step(1);
-            gui.add(demo, 'SCANNING_ANGLE', -180, 180);
             gui.add(demo, 'SCAN_MAX_OFFSET', 2, 80).step(1);
             gui.add(demo, 'SCAN_OFFSET_STEP', 1, 10).step(1);
             gui.add(demo, 'GRID_FACTOR', 1, 40).step(1);
@@ -113,8 +115,11 @@ CanvasFrame.prototype.transform = function() {
         len = newpx.length;
 
     var i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT,
-        fscan, d, m = Math.tan(Math.PI/(180/-demo.SCANNING_ANGLE)),
+        fscan, d, m, Dx, Dy,
         dx, j, xr, yr, cl, cr, k, depth, colorDepth, offsetFrom, offsetTo, minD, distance, count;
+
+
+    var ctx = this.context;
 
     // iterate through the entire buffer
     for (i = 0; i < len; i += 4) {
@@ -124,21 +129,36 @@ CanvasFrame.prototype.transform = function() {
         if (x < CANVAS_WIDTH/2) {
             y = parseInt((i/4) / w);
             if (!(x % demo.GRID_FACTOR) && !(y % demo.GRID_FACTOR) && Math.random() > demo.STOCASTIC_RATIO) {
-                d = y - m*(x + w/2); // shifted to the right video stream
-                fscan = function (xi) { return /*h -*/ (m*xi + d); };
+
+                Dx = x - demo.EPIPOLES_OFFSET_X;
+                Dy = y - h/2 + demo.EPIPOLES_OFFSET_Y;
+                m = Dy/Dx;
+                d = y - m*(x + w/2);
+                fscan = function (xi) { return (m*xi + d); };
 
                 minD = Number.MAX_VALUE;
                 count = 0;
                 // default is full depth
-                depth = 1;
+                depth = 0;
 
                 // pick the left side pixel color
                 cl = [videopx[i+0], videopx[i+1], videopx[i+2]];
-                for (dx = demo.SCAN_MAX_OFFSET; dx > -demo.SCAN_MAX_OFFSET; dx-=demo.SCAN_OFFSET_STEP) {
+                for (dx = 0; dx < 2*demo.SCAN_MAX_OFFSET; dx+=demo.SCAN_OFFSET_STEP) {
                     xr = w/2 + x + dx;
                     yr = parseInt(fscan(xr), 10);
                     if (0 === dx || xr < w/2 || xr > w || yr < 0 || yr > h) continue;
                     j = (yr*w + xr)*4;
+
+                    if (Math.random() > 0.9999) {
+                        ctx.beginPath();
+                        ctx.moveTo(x+w/2, y);
+                        ctx.lineTo(xr, yr);
+                        ctx.closePath();
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = '#f00';
+                        ctx.stroke();
+                        
+                    }
 
                     // pick the right side scanning pixel color
                     cr = [videopx[j+0], videopx[j+1], videopx[j+2]];
