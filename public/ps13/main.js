@@ -6,7 +6,8 @@ var demo = null,
 function $(id) { return document.getElementById(id); }
 
 var video = $('video'),
-    videoSource = 'gopro3d/GoPro 3D  Winter X Games 2011 Highlights.sd.mp4', // 640x360
+    //videoSource = 'gopro3d/GoPro 3D  Winter X Games 2011 Highlights.sd.mp4', // 640x360
+    videoSource = 'gopro3d/GoPro 3D  Hero 2 during Mammoth Mountain Blizzard.sd.mp4', // 640x360
     canvas = $('canvas1'),
     canvasDepth = $('canvas2'),
     canvasFrame = new CanvasFrame(canvas);
@@ -28,6 +29,7 @@ video.addEventListener('loadedmetadata', function () {
                 GRID_FACTOR: 1,
                 STOCASTIC_RATIO: 0,
                 DEPTH_SATURATION: 1,
+                DEPTH_SCALE: 3,
                 PROCESSING_RATIO: 2,
                 SIMPLE_BLUR: false,
                 GAUSSIAN_BLUR: 0,
@@ -46,7 +48,7 @@ video.addEventListener('loadedmetadata', function () {
                 }
             };
             gui = new dat.GUI({ width: 400 });
-            gui.add(demo, 'EPIPOLES_OFFSET_X', - CANVAS_WIDTH/2, CANVAS_WIDTH/2).step(1);
+            gui.add(demo, 'EPIPOLES_OFFSET_X', -3000, 3000).step(1);
             gui.add(demo, 'EPIPOLES_OFFSET_Y', - CANVAS_HEIGHT/2, CANVAS_HEIGHT/2).step(1);
             gui.add(demo, 'COLOR_THRESHOLD', 0, 255).step(1);
             gui.add(demo, 'SCAN_MAX_OFFSET', 2, 80).step(1);
@@ -54,6 +56,7 @@ video.addEventListener('loadedmetadata', function () {
             gui.add(demo, 'GRID_FACTOR', 1, 40).step(1);
             gui.add(demo, 'STOCASTIC_RATIO', 0, 1).step(0.0001);
             gui.add(demo, 'DEPTH_SATURATION', 0, 10).step(0.0001);
+            gui.add(demo, 'DEPTH_SCALE', 1, 20).step(0.0001);
             gui.add(demo, 'PROCESSING_RATIO', 1, 30).step(1);
             gui.add(demo, 'SIMPLE_BLUR');
             gui.add(demo, 'GAUSSIAN_BLUR', 0, 10).step(1);
@@ -143,7 +146,7 @@ CanvasFrame.prototype.transform = function() {
 
                 // pick the left side pixel color
                 cl = [videopx[i+0], videopx[i+1], videopx[i+2]];
-                for (dx = 0; dx < 2*demo.SCAN_MAX_OFFSET; dx+=demo.SCAN_OFFSET_STEP) {
+                for (dx = demo.SCAN_MAX_OFFSET; dx > -demo.SCAN_MAX_OFFSET; dx-=demo.SCAN_OFFSET_STEP) {
                     xr = w/2 + x + dx;
                     yr = parseInt(fscan(xr), 10);
                     if (0 === dx || xr < w/2 || xr > w || yr < 0 || yr > h) continue;
@@ -169,7 +172,7 @@ CanvasFrame.prototype.transform = function() {
                         // estimate depth from 0 to 1 (higher is deeper)
                         depth = 1/(2*demo.SCAN_MAX_OFFSET) * (dx + demo.SCAN_MAX_OFFSET);
                         minD = distance;
-                        if (count > demo.SCAN_MAX_OFFSET/2 || minD < demo.COLOR_THRESHOLD) {
+                        if (count > demo.SCAN_MAX_OFFSET || minD < demo.COLOR_THRESHOLD) {
                             break;
                         }
                     }
@@ -186,6 +189,11 @@ CanvasFrame.prototype.transform = function() {
                 newpx[i+0] = colorDepth;
                 newpx[i+1] = colorDepth;
                 newpx[i+2] = colorDepth;
+                newpx[i+3] = 255;
+            } else {
+                newpx[i+0] = 0;
+                newpx[i+1] = 0;
+                newpx[i+2] = 0;
                 newpx[i+3] = 255;
             }
         }

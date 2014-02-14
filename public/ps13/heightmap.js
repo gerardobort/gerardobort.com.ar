@@ -32,11 +32,6 @@ function init() {
 
     scene = new THREE.Scene();
 
-    controls = new THREE.TrackballControls( camera );
-    controls.rotateSpeed = 1.0;
-    controls.zoomSpeed = 1.2;
-    controls.panSpeed = 0.8;
-
 
     var geometry = new THREE.PlaneGeometry( worldWidth, worldDepth, worldWidth - 1, worldDepth - 1 );
     geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
@@ -56,6 +51,12 @@ function init() {
     container.innerHTML = "";
     container.appendChild( renderer.domElement );
 
+
+    controls = new THREE.TrackballControls( camera, renderer.domElement );
+    controls.rotateSpeed = 1.0;
+    controls.zoomSpeed = 1.2;
+    controls.panSpeed = 0.8;
+
     window.addEventListener( 'resize', onWindowResize, false );
 }
 
@@ -66,7 +67,7 @@ function updateHeightmap() {
 
     data = generateHeight( worldWidth, worldDepth );
     for ( var i = 0, l = geometry.vertices.length; i < l; i ++ ) {
-        mesh.geometry.vertices[ i ].y = data[ i ];
+        mesh.geometry.vertices[ i ].y = data[ i ]*demo.DEPTH_SCALE;
     }
     geometry.verticesNeedUpdate = true;
 
