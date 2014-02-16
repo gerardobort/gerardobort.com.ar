@@ -67,7 +67,7 @@ function updateHeightmap() {
 
     data = generateHeight( worldWidth, worldDepth );
     for ( var i = 0, l = geometry.vertices.length; i < l; i ++ ) {
-        mesh.geometry.vertices[ i ].y = data[ i ]*demo.DEPTH_SCALE;
+        mesh.geometry.vertices[ i ].y = data[ i ];
     }
     geometry.verticesNeedUpdate = true;
 
@@ -90,7 +90,7 @@ function generateHeight( width, height ) {
     
     mapData = canvasFrame.depthContext.getImageData(0, 0, canvasDepth.width, canvasDepth.height).data;
     for ( var i = 0; i < size; i++ ) {
-        d = parseInt(10*(1 - mapData[i*4]/255), 10);
+        d = mapData[i*4]*demo.DEPTH_SCALE;
         data[ i ] = d;
     }
 

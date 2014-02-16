@@ -21,7 +21,7 @@ video.addEventListener('loadedmetadata', function () {
 
         if (!demo) {
             demo = {
-                EPIPOLES_OFFSET_X: 10,
+                EPIPOLES_OFFSET_X: - CANVAS_WIDTH,
                 EPIPOLES_OFFSET_Y: 0,
                 COLOR_THRESHOLD: 60,
                 SCAN_MAX_OFFSET: 5,
@@ -29,7 +29,7 @@ video.addEventListener('loadedmetadata', function () {
                 GRID_FACTOR: 1,
                 STOCASTIC_RATIO: 0,
                 DEPTH_SATURATION: 1,
-                DEPTH_SCALE: 3,
+                DEPTH_SCALE: -0.5,
                 PROCESSING_RATIO: 2,
                 SIMPLE_BLUR: false,
                 GAUSSIAN_BLUR: 0,
@@ -56,7 +56,7 @@ video.addEventListener('loadedmetadata', function () {
             gui.add(demo, 'GRID_FACTOR', 1, 40).step(1);
             gui.add(demo, 'STOCASTIC_RATIO', 0, 1).step(0.0001);
             gui.add(demo, 'DEPTH_SATURATION', 0, 10).step(0.0001);
-            gui.add(demo, 'DEPTH_SCALE', -20, 20).step(1);
+            gui.add(demo, 'DEPTH_SCALE', -2, 2).step(0.0011);
             gui.add(demo, 'PROCESSING_RATIO', 1, 30).step(1);
             gui.add(demo, 'SIMPLE_BLUR');
             gui.add(demo, 'GAUSSIAN_BLUR', 0, 10).step(1);
@@ -127,6 +127,8 @@ CanvasFrame.prototype.transform = function() {
     // iterate through the entire buffer
     for (i = 0; i < len; i += 4) {
 
+        newpx[i+3] = 255;
+
         x = (i/4) % w;
         // only with the left side video...
         if (x < CANVAS_WIDTH/2) {
@@ -137,58 +139,21 @@ CanvasFrame.prototype.transform = function() {
                 Dy = y - h/2 + demo.EPIPOLES_OFFSET_Y;
                 m = Dy/Dx;
                 d = y - m*(x + w/2);
-                fscan = function (xi) { return (m*(xi + demo.EPIPOLES_OFFSET_X) + d); };
+                fscan = function (xi) { return (m*(xi /*+ demo.EPIPOLES_OFFSET_X*/) + d); };
 
                 minD = Number.MAX_VALUE;
                 count = 0;
                 // default is full depth
                 depth = 1;
 
-                // pick the left side pixel color
-                cl = [videopx[i+0], videopx[i+1], videopx[i+2]];
-                for (dx = demo.SCAN_MAX_OFFSET; dx > -demo.SCAN_MAX_OFFSET; dx-=demo.SCAN_OFFSET_STEP) {
-                    xr = w/2 + x + dx;
-                    yr = parseInt(fscan(xr), 10);
-                    if (xr < w/2 || xr > w || yr < 0 || yr > h) continue;
-                    j = (yr*w + xr)*4;
-
-                    if (Math.random() > 0.9999) {
-                        ctx.beginPath();
-                        ctx.moveTo(x+w/2, y);
-                        ctx.lineTo(xr, yr);
-                        ctx.closePath();
-                        ctx.lineWidth = 1;
-                        ctx.strokeStyle = '#f00';
-                        ctx.stroke();
-                        
-                    }
-
-                    // pick the right side scanning pixel color
-                    cr = [videopx[j+0], videopx[j+1], videopx[j+2]];
-
-                    // if it matches then draw in the depthmap 
-                    if ((distance = distance3(cl, cr, 0)) < minD) {
-                        count++;
-                        // estimate depth from 0 to 1 (higher is deeper)
-                        depth = 1/(2*demo.SCAN_MAX_OFFSET) * (Math.abs(dx) + demo.SCAN_MAX_OFFSET);
-                        minD = distance;
-                        if (count > demo.SCAN_MAX_OFFSET || minD < demo.COLOR_THRESHOLD) {
-                            break;
-                        }
-                    }
-                }
-                if (minD > 0 && minD < demo.COLOR_THRESHOLD) {
-                    depth = depth * (demo.COLOR_THRESHOLD/(minD + demo.COLOR_THRESHOLD));
-                }
-                // apply depth saturation if <> 1
-                depth *= demo.DEPTH_SATURATION;
-                depth = depth > 1 ? 1 : depth;
+                dx = 0;
+                xr = w/2 + x + dx;
+                yr = parseInt(fscan(xr), 10);
+                if (xr < w/2 || xr > w || yr < 0 || yr > h) continue;
+                j = (yr*w + xr)*4;
 
                 // draw depth canvas buffer
-                colorDepth = parseInt(depth*255, 10);
-                newpx[i+0] = colorDepth;
-                newpx[i+1] = colorDepth;
-                newpx[i+2] = colorDepth;
+                newpx[i+0] = newpx[j+0];
                 newpx[i+3] = 255;
             } else {
                 newpx[i+0] = 0;
