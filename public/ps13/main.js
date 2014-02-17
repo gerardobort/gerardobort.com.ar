@@ -139,15 +139,14 @@ CanvasFrame.prototype.transform = function() {
                 Dy = y - h/2 + demo.EPIPOLES_OFFSET_Y;
                 m = Dy/Dx;
                 d = y - m*(x + w/2);
-                fscan = function (xi) { return (m*(xi /*+ demo.EPIPOLES_OFFSET_X*/) + d); };
+                fscan = function (xi) { return (m*xi + d); };
 
                 minD = Number.MAX_VALUE;
                 count = 0;
                 // default is full depth
                 depth = 1;
 
-                dx = 0;
-                xr = w/2 + x + dx;
+                xr = w/2 + x;
                 yr = parseInt(fscan(xr), 10);
                 if (xr < w/2 || xr > w || yr < 0 || yr > h) continue;
                 j = (yr*w + xr)*4;
