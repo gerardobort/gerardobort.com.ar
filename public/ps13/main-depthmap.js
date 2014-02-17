@@ -166,6 +166,8 @@ CanvasFrame.prototype.transform = function() {
                     if ( diffnew < diff ) {
                         besthit = -j;
                         diff = diffnew;
+                    } else {
+                        break;
                     }
                 }
                 besthit = parseInt(255 * besthit/parallax, 10);
