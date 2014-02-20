@@ -24,13 +24,14 @@ video.addEventListener('loadedmetadata', function () {
                 OFFSET_X: 1,
                 OFFSET_Y: -4,
                 COLOR_THRESHOLD: 60,
-                SCAN_MAX_OFFSET: 5,
-                SCAN_OFFSET_STEP: 2,
+                ERROR_TOLERANCE: 200,
+                DEPTH_STEP: 5,
                 GRID_FACTOR: 1,
                 STOCASTIC_RATIO: 0,
                 DEPTH_SATURATION: 1,
                 DEPTH_SCALE: -0.5,
                 PROCESSING_RATIO: 2,
+                SHOW_DEPTH: true,
                 SIMPLE_BLUR: false,
                 GAUSSIAN_BLUR: 0,
                 VIDEO_POSITION: 0,
@@ -51,13 +52,14 @@ video.addEventListener('loadedmetadata', function () {
             gui.add(demo, 'OFFSET_X', - CANVAS_WIDTH, CANVAS_WIDTH).step(1);
             gui.add(demo, 'OFFSET_Y', - CANVAS_HEIGHT/2, CANVAS_HEIGHT/2).step(1);
             gui.add(demo, 'COLOR_THRESHOLD', 0, 255).step(1);
-            gui.add(demo, 'SCAN_MAX_OFFSET', 2, 80).step(1);
-            gui.add(demo, 'SCAN_OFFSET_STEP', 1, 10).step(1);
+            gui.add(demo, 'ERROR_TOLERANCE', 0, 255).step(1);
+            gui.add(demo, 'DEPTH_STEP', 1, 10).step(1);
             gui.add(demo, 'GRID_FACTOR', 1, 40).step(1);
             gui.add(demo, 'STOCASTIC_RATIO', 0, 1).step(0.0001);
             gui.add(demo, 'DEPTH_SATURATION', 0, 10).step(0.0001);
             gui.add(demo, 'DEPTH_SCALE', -2, 2).step(0.0011);
             gui.add(demo, 'PROCESSING_RATIO', 1, 30).step(1);
+            gui.add(demo, 'SHOW_DEPTH');
             gui.add(demo, 'SIMPLE_BLUR');
             gui.add(demo, 'GAUSSIAN_BLUR', 0, 10).step(1);
             gui.add(video, 'currentTime', 0, video.duration)
@@ -121,12 +123,18 @@ CanvasFrame.prototype.transform = function() {
         fscan, d, m, Dx, Dy,
         dx, j, xr, yr, cl, cr, k, depth, colorDepth, offsetFrom, offsetTo, minD, distance, count;
 
+    var cyan = [0, 175, 236]; // (CMYK=100,0,0,0)
+    var yellow = [255, 240, 42]; // (CMYK=0,0,100,0)
+    var e = demo.ERROR_TOLERANCE;
+    var step = demo.DEPTH_STEP;
+
 
     var ctx = this.context;
 
     // iterate through the entire buffer
     for (i = 0; i < len; i += 4) {
 
+        if (0 === x) depth = 255;
         x = (i/4) % w;
         // only with the left side video...
         if (x < CANVAS_WIDTH/2) {
@@ -143,12 +151,25 @@ CanvasFrame.prototype.transform = function() {
                     + (videopx[i+1]-videopx[j+1])*(videopx[i+1]-videopx[j+1])
                     + (videopx[i+2]-videopx[j+2])*(videopx[i+2]-videopx[j+2])
                 ), 10);
+                
+                cl = [videopx[j], distance, videopx[i]];
+                if (distance3(cl, cyan, 0) < e) {
+                    depth -= step;
+                } else if (distance3(cl, yellow, 0) < e) {
+                    depth += step;
+                }
 
                 // draw depth canvas buffer
-                newpx[i+0] = distance;
-                newpx[i+1] = distance;
-                newpx[i+2] = distance;
-                newpx[i+3] = 255;
+                if (demo.SHOW_DEPTH) {
+                    newpx[i+0] = depth;
+                    newpx[i+1] = depth;
+                    newpx[i+2] = depth;
+                } else {
+                    newpx[i+0] = videopx[j];
+                    newpx[i+1] = distance;
+                    newpx[i+2] = videopx[i];
+                }
+                
             } else {
                 newpx[i+0] = 0;
                 newpx[i+1] = 0;
