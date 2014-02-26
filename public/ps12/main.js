@@ -1,6 +1,6 @@
 
-var CANVAS_WIDTH = 300,
-    CANVAS_HEIGHT = 200;
+var CANVAS_WIDTH = 640,
+    CANVAS_HEIGHT = 480;
 
 function $(id) { return document.getElementById(id); }
 
@@ -50,16 +50,14 @@ function CanvasFrame(canvas) {
     that.original = that.getData();
     this.i = 0;
     this.hull = new ConvexHull();
-    this.pointColors = [
-        'rgba(0,     0,   0, 0.6)',
-        'rgba(0,     0, 255, 0.6)',
-        'rgba(0,   255,   0, 0.6)',
-        'rgba(0  , 255, 255, 0.6)',
-        'rgba(255,   0,   0, 0.6)',
-        'rgba(255,   0, 255, 0.6)',
-        'rgba(255, 255,   0, 0.6)',
-        'rgba(255, 255, 255, 0.6)'
-    ];
+    this.pointColors = [];
+    var r, g, b;
+    for (var i = 0; i < 100; i++) {
+        r = Math.floor(Math.random()*255);
+        g = Math.floor(Math.random()*255);
+        b = Math.floor(Math.random()*255);
+        this.pointColors.push('rgba(' + r + ', ' + g + ', ' + b + ', 0.6)');
+    }
     this.objectsBuffer = [];
 }
 
@@ -99,13 +97,13 @@ CanvasFrame.prototype.transform = function() {
         len = newpx.length;
 
     var MOTION_COLOR_THRESHOLD = 50,
-        GRID_FACTOR = 4,
+        GRID_FACTOR = 8,
         MOTION_ALPHA_THRESHOLD = 120,
         alpha = 0,
         gamma = 3,
         i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT;
 
-    var k = 30,
+    var k = 50,
         p = o = null,
         dMin = d = 0,
         jMin = 0,
@@ -159,7 +157,7 @@ CanvasFrame.prototype.transform = function() {
                 if (!this.objectsBuffer[j]) {
                     x = parseInt(Math.random()*CANVAS_WIDTH, 10);
                     y = parseInt(Math.random()*CANVAS_HEIGHT, 10);
-                    objects.push([x, y, [], [], 0, 0, [0, 0, 0]]); // x, y, innerPointsVec, innerPointsObj, mx, my, rgbFloatColor
+                    objects.push([x, y, [], [], 0, 0, [0, 0, 0], true, [1, 0]]); // x, y, innerPointsVec, innerPointsObj, mx, my, rgbFloatColor, visible, versor
                 } else {
                     objects.push(this.objectsBuffer[j]);
                 }
@@ -172,6 +170,8 @@ CanvasFrame.prototype.transform = function() {
                 objects[j][4] = 0;
                 objects[j][5] = 0;
                 objects[j][6] = [0, 0, 0];
+                objects[j][7] = true;
+                objects[j][8] = [1, 0];
             }
         }
 
@@ -204,7 +204,7 @@ CanvasFrame.prototype.transform = function() {
         var rpoints = objects[j][3];
         if (rpoints.length < 14/GRID_FACTOR) {
             objects[j][7] = false;
-            continue;
+            //continue;
         }
         objects[j][7] = true;
 
@@ -276,6 +276,7 @@ CanvasFrame.prototype.transform = function() {
 
             modulus = Math.sqrt(countx*countx + county*county);
             versor = [-countx/modulus, -county/modulus];
+            objects[j][8] = versor;
 
             if (this.objectsBuffer[j]) {
                 var avgP = [(objects[j][0] + this.objectsBuffer[j][0])*0.5, (objects[j][1] + this.objectsBuffer[j][1])*0.5];
@@ -286,23 +287,25 @@ CanvasFrame.prototype.transform = function() {
                 ctx.lineTo(avgP[0]+versor[0]*0.03*modulus, avgP[1]+versor[1]*0.03*modulus);
                 ctx.closePath();
                 ctx.lineWidth = 1;
-                ctx.strokeStyle = 'rgba(' + (150+3*cx) + ', 0, ' + (150+3*cy) + ', 0.7)';
+                ctx.strokeStyle = 'rgba(' + (150+5*cx) + ', 0, ' + (150+5*cy) + ', 0.7)';
                 ctx.stroke();
             }
             ///  --->
             var minD = 99999, d, closestObject = objects[j];
             ctx.beginPath();
             ctx.moveTo(objects[j][0], objects[j][1]);
-            for (i = j; i < objects.length; i++) {
+            for (i = j+1; i < objects.length; i++) {
                 if (i != j && objects[i][7] && minD > (d = distance2(objects[j], objects[i], 0))) {
-                    minD = d;
-                    closestObject = objects[i];
+                    //if (Math.abs(Math.atan2(objects[j][8][1], objects[j][8][0]) - Math.atan2(objects[i][8][1], objects[i][8][0])) < 2) {
+                        minD = d;
+                        closestObject = objects[i];
+                    //}
                 }
             }
             ctx.lineTo(closestObject[0], closestObject[1]);
             ctx.closePath();
             ctx.lineWidth = 1;
-            ctx.strokeStyle = 'rgba(0, 200, 0, 0.7)';
+            ctx.strokeStyle = this.pointColors[j];
             ctx.stroke();
 
             var rp = [rpoints[indices[0]].x, rpoints[indices[0]].y];
