@@ -105,7 +105,7 @@ CanvasFrame.prototype.transform = function() {
         gamma = 3,
         i = l = x = y = 0, w = CANVAS_WIDTH, h = CANVAS_HEIGHT;
 
-    var k = 2;
+    var k = 30,
         p = o = null,
         dMin = d = 0,
         jMin = 0,
@@ -203,8 +203,10 @@ CanvasFrame.prototype.transform = function() {
     for (var j = 0; j < k; j++) {
         var rpoints = objects[j][3];
         if (rpoints.length < 14/GRID_FACTOR) {
+            objects[j][7] = false;
             continue;
         }
+        objects[j][7] = true;
 
         // draw object hulls
         this.hull.clear();
@@ -288,6 +290,20 @@ CanvasFrame.prototype.transform = function() {
                 ctx.stroke();
             }
             ///  --->
+            var minD = 99999, d, closestObject = objects[j];
+            ctx.beginPath();
+            ctx.moveTo(objects[j][0], objects[j][1]);
+            for (i = j; i < objects.length; i++) {
+                if (i != j && objects[i][7] && minD > (d = distance2(objects[j], objects[i], 0))) {
+                    minD = d;
+                    closestObject = objects[i];
+                }
+            }
+            ctx.lineTo(closestObject[0], closestObject[1]);
+            ctx.closePath();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(0, 200, 0, 0.7)';
+            ctx.stroke();
 
             var rp = [rpoints[indices[0]].x, rpoints[indices[0]].y];
             ctx.beginPath();
