@@ -1,7 +1,7 @@
 
-var CANVAS_WIDTH = 640/2,
-    CANVAS_HEIGHT = 480/2,
-    K = 10;
+var CANVAS_WIDTH = 640,
+    CANVAS_HEIGHT = 480,
+    K = 30;
 
 function $(id) { return document.getElementById(id); }
 
@@ -134,7 +134,7 @@ CanvasFrame.prototype.transform = function() {
         x = (i/4) % w;
         y = parseInt((i/4) / w);
         if (this.i > this.buffersN && (!(x % GRID_FACTOR) && !(y % GRID_FACTOR)) && alpha > MOTION_ALPHA_THRESHOLD) {
-            newpx[i+3] = parseInt(alpha, 10);
+            //newpx[i+3] = parseInt(alpha, 10);
             points.push([x, y, [ newpx[i+0], newpx[i+1], newpx[i+2] ]]);
         }
     }
@@ -288,6 +288,7 @@ CanvasFrame.prototype.transform = function() {
 
             if (this.objectsBuffer[j]) {
                 var avgP = [(objects[j][0] + this.objectsBuffer[j][0])*0.5, (objects[j][1] + this.objectsBuffer[j][1])*0.5];
+/*
                 markPoint(ctx, avgP[0], avgP[1], 6, this.pointColors[j]);
 
                 ctx.beginPath();
@@ -297,19 +298,27 @@ CanvasFrame.prototype.transform = function() {
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = 'rgba(' + (150+5*cx) + ', 0, ' + (150+5*cy) + ', 0.7)';
                 ctx.stroke();
+*/
 
                 var p = this.particles[j];
-                p.size = modulus/100;
+                p.size = modulus/200;
                 p.sizeRandom = 0;;
                 p.position.x = avgP[0];
                 p.position.y = avgP[1];
-                //p.direction.x = -versor[0];
-                //p.direction.y = -versor[1];
-                p.timeToLive = 3;
+                p.positionRandom.x = versor[0]*20;
+                p.positionRandom.y = versor[1]*20;
+                p.speed = 15; // 60*dV
+                p.sharpness = 20;
+                p.sharpnessRandom = 30;
+                p.angle = 180*(Math.atan2(versor[1], versor[0])/Math.PI);
+                p.angleRandom = 60;
+                p.timeToLive = 1;
                 p.gravity.x = 0;
-                p.gravity.y = 0.7;
-                p.positionRandom.x = 10;
-                p.positionRandom.y = 10;
+                p.gravity.y = 4;
+                p.startColour = [ 232, 64, 170, 1 ];
+                p.startColourRandom = [ 0, 0, 0, 0 ];
+                p.finishColour = [ 255, 255, 255, 0.5 ];  
+                p.finishColourRandom = [ 0, 0, 0, 0 ];
                 p.update(1);
                 p.renderParticles(ctx);
             }
@@ -317,6 +326,7 @@ CanvasFrame.prototype.transform = function() {
 
             ///  --->
             var minD = 99999, d, closestObject = objects[j];
+/*
             ctx.beginPath();
             ctx.moveTo(objects[j][0], objects[j][1]);
             for (i = j+1; i < objects.length; i++) {
@@ -345,7 +355,7 @@ CanvasFrame.prototype.transform = function() {
             ctx.fill();
             ctx.stroke();
             ctx.closePath();
-
+*/
             this.objectsBuffer[j] = objects[j]; // update buffer
         }
     }
