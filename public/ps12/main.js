@@ -1,3 +1,6 @@
+if ('https:' !== window.location.protocol && window.location.host.match(/github\.io/)) {
+    window.location.protocol = 'https:';
+}
 
 var CANVAS_WIDTH = 640,
     CANVAS_HEIGHT = 480;
